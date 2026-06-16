@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Smart Route Optimizer | Driver + Named Passengers</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #0f212e;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #1e3a42; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #6abf8b; border-radius: 10px; }
+
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 420px;
+            min-width: 420px;
+            background: rgba(18, 32, 38, 0.95);
+            backdrop-filter: blur(2px);
+            color: #eef4ff;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 16px 14px;
+            gap: 14px;
+            border-right: 1px solid rgba(76, 175, 127, 0.3);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .sidebar h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #4caf7f;
+            padding-bottom: 6px;
+            margin-bottom: 2px;
+        }
+
+        .card {
+            background: #1f3e48;
+            border-radius: 20px;
+            padding: 12px 14px;
+            transition: all 0.2s;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .card-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            border-left: 4px solid #4caf7f;
+            padding-left: 12px;
+            color: #cdeef5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title .badge {
+            font-size: 0.6rem;
+            background: #4caf7f;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 400;
+            color: white;
+        }
+
+        .card-title .badge.empty {
+            background: #c97e3a;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 40px;
+            border: none;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            background: #2d4f5c;
+            color: white;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input::placeholder {
+            color: #bdd4db;
+        }
+
+        input:focus {
+            background: #2e5e6b;
+            box-shadow: 0 0 0 2px #6abf8b;
+        }
+
+        input.error {
+            border: 2px solid #ff6b6b;
+            background: #3d2a2a;
+        }
+
+        input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .dual-input {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .dual-input input {
+            flex: 2;
+            margin-bottom: 0;
+        }
+
+        .dual-input input:first-child {
+            flex: 1;
+        }
+
+        button {
+            background: #4caf7f;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: #3e9a6e;
+            transform: scale(0.97);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: #2c6e8f;
+        }
+
+        button.secondary:hover {
+            background: #235f7a;
+        }
+
+        button.danger {
+            background: #c97e3a;
+        }
+
+        button.danger:hover {
+            background: #b86a2a;
+        }
+
+        button.success {
+            background: #2a7f5c;
+        }
+
+        button.map-pick {
+            background: #6abf8b;
+            font-size: 0.7rem;
+            padding: 8px 12px;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        button.map-pick.active {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+
+        button.remove-driver {
+            background: #c97e3a;
+            font-size: 0.65rem;
+            padding: 4px 10px;
+            min-width: 50px;
+        }
+
+        button.remove-driver:hover {
+            background: #b86a2a;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group button {
+            flex: 1;
+            min-width: 60px;
+        }
+
+        .driver-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #0e2c36;
+            padding: 6px 12px;
+            border-radius: 14px;
+            margin-top: 6px;
+            font-size: 0.75rem;
+            border-left: 3px solid #4caf7f;
+        }
+
+        .driver-status .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .driver-status .status-dot.set {
+            background: #4caf7f;
+        }
+
+        .driver-status .status-dot.not-set {
+            background: #c97e3a;
+        }
+
+        .driver-status .driver-name {
+            font-weight: 600;
+            color: #fadf9e;
+        }
+
+        .driver-status .driver-addr {
+            opacity: 0.7;
+            font-size: 0.65rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        .passenger-list {
+            max-height: 180px;
+            overflow-y: auto;
+            margin: 6px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .pax-item {
+            background: #0e2c36;
+            margin: 0;
+            padding: 6px 10px;
+            border-radius: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.1s;
+            border-left: 3px solid #f5bc70;
+            font-size: 0.8rem;
+            cursor: grab;
+        }
+
+        .pax-item:active {
+            cursor: grabbing;
+        }
+
+        .pax-item.dragging {
+            opacity: 0.5;
+            border-color: #6abf8b;
+        }
+
+        .pax-item.drag-over {
+            border-color: #4caf7f;
+            background: #1a4a3a;
+        }
+
+        .pax-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .pax-name {
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: #fadf9e;
+        }
+
+        .pax-addr {
+            font-size: 0.6rem;
+            opacity: 0.8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pax-order {
+            font-size: 0.65rem;
+            background: #4caf7f;
+            color: white;
+            padding: 1px 8px;
+            border-radius: 12px;
+            margin-right: 6px;
+            font-weight: bold;
+            min-width: 22px;
+            text-align: center;
+            cursor: grab;
+        }
+
+        .delete-btn {
+            background: none;
+            color: #ffaa66;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0 4px;
+            font-weight: bold;
+        }
+
+        .delete-btn:hover {
+            color: #ff6b6b;
+        }
+
+        .status {
+            font-size: 0.65rem;
+            background: #08212b;
+            padding: 6px;
+            border-radius: 14px;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .status.error {
+            background: #3d1a1a;
+            color: #ff6b6b;
+        }
+
+        .status.success {
+            background: #1a3d2a;
+            color: #6abf8b;
+        }
+
+        .status.pick-mode {
+            background: #3d3a1a;
+            color: #ffd93d;
+            border: 1px solid #ffd93d;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            background: #1e2f2f;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            background: #1e2f2f;
+        }
+
+        .route-balloon {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 340px;
+            max-height: calc(100% - 90px);
+            background: rgba(10, 25, 35, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 12px 14px;
+            color: white;
+            border: 1px solid rgba(76, 175, 127, 0.25);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 1000;
+            font-size: 0.7rem;
+            pointer-events: auto;
+            overflow-y: auto;
+            max-height: calc(100% - 30px);
+            cursor: grab;
+            transition: all 0.3s ease;
+        }
+
+        .route-balloon:hover {
+            background: rgba(10, 25, 35, 0.85);
+            border-color: rgba(76, 175, 127, 0.4);
+        }
+
+        .route-balloon:active {
+            cursor: grabbing;
+        }
+
+        .route-balloon::-webkit-scrollbar { width: 3px; }
+        .route-balloon::-webkit-scrollbar-track { background: rgba(30, 58, 66, 0.3); border-radius: 10px; }
+        .route-balloon::-webkit-scrollbar-thumb { background: rgba(106, 191, 139, 0.5); border-radius: 10px; }
+
+        .balloon-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 1px solid rgba(76, 175, 127, 0.2);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+        }
+
+        .balloon-header strong {
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            color: #6abf8b;
+        }
+
+        .balloon-header .badge-light {
+            font-size: 0.55rem;
+            opacity: 0.5;
+            background: rgba(255,255,255,0.05);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .balloon-steps {
+            max-height: 320px;
+            overflow-y: auto;
+            font-size: 0.65rem;
+            padding: 4px 0;
+            margin: 2px 0;
+        }
+
+        .balloon-steps::-webkit-scrollbar { width: 3px; }
+        .balloon-steps::-webkit-scrollbar-track { background: rgba(30, 58, 66, 0.2); border-radius: 10px; }
+        .balloon-steps::-webkit-scrollbar-thumb { background: rgba(106, 191, 139, 0.4); border-radius: 10px; }
+
+        .balloon-step-item {
+            padding: 4px 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .balloon-step-item:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .balloon-step-item:last-child {
+            border-bottom: none;
+        }
+
+        .step-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .step-number {
+            background: rgba(76, 175, 127, 0.3);
+            color: #6abf8b;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .step-number.driver-step {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+            font-size: 0.6rem;
+        }
+
+        .step-name {
+            font-weight: 600;
+            color: #fadf9e;
+        }
+
+        .step-dist {
+            color: rgba(106, 191, 139, 0.7);
+            margin-left: auto;
+            font-size: 0.55rem;
+            font-weight: 600;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.2);
+            padding: 1px 8px;
+            border-radius: 10px;
+        }
+
+        .step-address {
+            font-size: 0.55rem;
+            opacity: 0.6;
+            padding-left: 24px;
+            word-wrap: break-word;
+            white-space: normal;
+            line-height: 1.2;
+            color: #bdd4db;
+        }
+
+        .total-dist {
+            font-weight: bold;
+            background: rgba(15, 46, 40, 0.5);
+            display: inline-block;
+            padding: 3px 14px;
+            border-radius: 40px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #6abf8b;
+            border: 1px solid rgba(76, 175, 127, 0.15);
+        }
+
+        .balloon-empty {
+            text-align: center;
+            opacity: 0.4;
+            padding: 12px 0;
+            font-size: 0.7rem;
+        }
+
+        .map-controls {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            z-index: 999;
+            display: flex;
+            gap: 6px;
+        }
+
+        .map-controls button {
+            padding: 5px 12px;
+            font-size: 0.65rem;
+            background: rgba(18, 32, 38, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(76, 175, 127, 0.4);
+        }
+
+        .map-controls button:hover {
+            background: rgba(76, 175, 127, 0.3);
+        }
+
+        .custom-marker {
+            border-radius: 50%;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+            color: white;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+        }
+
+        .custom-marker:hover {
+            transform: scale(1.15);
+        }
+
+        .custom-marker-driver {
+            background: #2c7a47;
+            border: 2px solid #ffd700;
+            font-size: 0.9rem;
+            width: 32px;
+            height: 32px;
+        }
+
+        .custom-marker-pax {
+            background: #f0a34f;
+        }
+
+        .custom-marker-pax-ordered {
+            background: #4caf7f;
+            border: 2px solid #a5d6a7;
+        }
+
+        .leaflet-interactive {
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .pick-indicator {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 152, 0, 0.9);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            animation: pulse 1.5s infinite;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .pick-indicator.show {
+            display: block;
+        }
+
+        .pick-indicator .cancel-pick {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+
+        .pick-indicator .cancel-pick:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .leaflet-tile-pane {
+            filter: brightness(0.95) contrast(1.05);
+        }
+
+        .leaflet-control-zoom {
+            border: none !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+        }
+
+        .leaflet-control-zoom a {
+            background: rgba(18, 32, 38, 0.9) !important;
+            color: white !important;
+            border-color: rgba(76, 175, 127, 0.3) !important;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background: rgba(76, 175, 127, 0.3) !important;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar { width: 320px; min-width: 320px; }
+            .route-balloon { width: 280px; right: 8px; top: 8px; padding: 10px 12px; font-size: 0.6rem; max-height: calc(100% - 20px); }
+            .custom-marker { width: 24px; height: 24px; font-size: 0.6rem; }
+            .custom-marker-driver { width: 28px; height: 28px; font-size: 0.8rem; }
+        }
+
+        @media (max-width: 700px) {
+            .sidebar { width: 100%; min-width: unset; max-height: 40vh; border-right: none; border-bottom: 1px solid rgba(76, 175, 127, 0.3); }
+            .app { flex-direction: column; }
+            .route-balloon { width: calc(100% - 16px); right: 8px; top: 8px; max-height: 30vh; }
+            .custom-marker { width: 22px; height: 22px; font-size: 0.55rem; }
+            .custom-marker-driver { width: 26px; height: 26px; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="sidebar">
+        <h2>📍 ROUTE OPTIMIZER</h2>
+
+        <div class="card">
+            <div class="card-title">🧠 INTELLIGENT ORDERING</div>
+            <button id="optimizeBtn" class="success" style="width:100%; padding: 10px;">✨ FIND OPTIMAL DRIVING SEQUENCE</button>
+            <div class="status" id="apiStatus">📍 Add addresses below to get started</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                🚗 DRIVER & START
+                <span class="badge" id="driverBadge">Not Set</span>
+            </div>
+            <div class="dual-input">
+                <input type="text" id="driverName" placeholder="Driver name" value="">
+                <input type="text" id="driverAddr" placeholder="Address" value="">
+            </div>
+            <div class="btn-group">
+                <button id="setDriverBtn">Set Driver</button>
+                <button id="pickDriverBtn" class="map-pick">📍 Pick from Map</button>
+                <button id="removeDriverBtn" class="remove-driver">🗑️ Remove</button>
+            </div>
+            <div class="driver-status" id="driverStatus">
+                <span class="status-dot not-set" id="driverStatusDot"></span>
+                <span class="driver-name" id="driverStatusName">No driver set</span>
+                <span class="driver-addr" id="driverStatusAddr"></span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                👥 PASSENGERS (drag to reorder)
+                <span class="badge" id="passengerBadge">0</span>
+            </div>
+            <div class="dual-input">
+                <input type="text" id="paxName" placeholder="Name">
+                <input type="text" id="paxAddr" placeholder="Address">
+            </div>
+            <div class="btn-group">
+                <button id="addPassengerBtn">➕ Add</button>
+                <button id="pickPassengerBtn" class="map-pick">📍 Pick from Map</button>
+                <button id="demoBtn" class="secondary">🎲 Demo</button>
+                <button id="clearBtn" class="danger">🗑️ Clear</button>
+            </div>
+            
+            <div class="passenger-list" id="paxListContainer">
+                <div style="text-align:center; opacity:0.6; padding:6px; font-size:0.75rem;">✨ No passengers yet</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="map-container" id="mapContainer">
+        <div id="map"></div>
+
+        <div class="pick-indicator" id="pickIndicator">
+            <span id="pickModeText">📍 Click on the map to pick location</span>
+            <button class="cancel-pick" id="cancelPickBtn">✕ Cancel</button>
+        </div>
+        
+        <div class="route-balloon" id="routeBalloon">
+            <div class="balloon-header">
+                <strong>📋 OPTIMIZED ITINERARY</strong>
+                <span class="badge-light">🍃 drag</span>
+            </div>
+            <div id="balloonSteps" class="balloon-steps">
+                <div class="balloon-empty">✨ Press "Find Best Driving Order"</div>
+            </div>
+            <div id="balloonTotalDistance" class="total-dist">📏 Total distance: ---</div>
+        </div>
+
+        <div class="map-controls">
+            <button id="downloadMapBtn">📥 Download PNG</button>
+            <button id="printMapBtn">📄 Download PDF</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== UTILITY FUNCTIONS ==========
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // ========== STATE ==========
+    let map = null;
+    let driver = { lat: null, lng: null, address: "", name: "Carlos" };
+    let passengers = [];
+    let markers = [];
+    let routeLayers = [];
+    let nextId = 1;
+    let currentOrder = [];
+    let pickMode = null;
+    let tempMarker = null;
+    let isMapReady = false;
+    let mapInitAttempts = 0;
+
+    // ========== MAP INITIALIZATION ==========
+    function initMap() {
+        try {
+            if (map) {
+                map.invalidateSize();
+                return;
+            }
+
+            const container = document.getElementById('map');
+            if (!container) {
+                console.error('Map container not found');
+                setTimeout(initMap, 500);
+                return;
+            }
+
+            map = L.map('map', {
+                center: [-12.9714, -38.5014],
+                zoom: 13,
+                zoomControl: true,
+                fadeAnimation: true,
+                zoomAnimation: true,
+                markerZoomAnimation: true,
+                preferCanvas: true
+            });
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+                maxZoom: 19,
+                minZoom: 3,
+                subdomains: 'abcd',
+                continuousWorld: true
+            }).addTo(map);
+
+            map.whenReady(function() {
+                setTimeout(function() {
+                    map.invalidateSize();
+                }, 100);
+            });
+
+            setTimeout(() => {
+                if (map) map.invalidateSize();
+            }, 200);
+
+            isMapReady = true;
+            setStatus('📍 Map ready!', '');
+
+            map.on('click', handleMapClick);
+
+        } catch (e) {
+            console.error('Map init error:', e);
+            mapInitAttempts++;
+            if (mapInitAttempts < 5) {
+                setTimeout(initMap, 1000);
+            } else {
+                setStatus('❌ Failed to load map. Please refresh.', 'error');
+            }
+        }
+    }
+
+    // ========== MAP CLICK HANDLER ==========
+    function handleMapClick(e) {
+        if (!map || !pickMode) return;
+        
+        if (pickMode === 'driver') {
+            reverseGeocode(e.latlng.lat, e.latlng.lng)
+                .then(address => {
+                    document.getElementById('driverAddr').value = address;
+                    document.getElementById('driverAddr').className = '';
+                    setDriverFromCoords(e.latlng.lat, e.latlng.lng, address);
+                    cancelPickMode();
+                })
+                .catch(() => {
+                    setDriverFromCoords(e.latlng.lat, e.latlng.lng, 
+                        `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`);
+                    cancelPickMode();
+                });
+        } else if (pickMode === 'passenger') {
+            reverseGeocode(e.latlng.lat, e.latlng.lng)
+                .then(address => {
+                    document.getElementById('paxAddr').value = address;
+                    document.getElementById('paxAddr').className = '';
+                    const name = document.getElementById('paxName').value.trim() || 'Passenger';
+                    addPassengerFromCoords(e.latlng.lat, e.latlng.lng, address, name);
+                    cancelPickMode();
+                })
+                .catch(() => {
+                    const address = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+                    document.getElementById('paxAddr').value = address;
+                    document.getElementById('paxAddr').className = '';
+                    const name = document.getElementById('paxName').value.trim() || 'Passenger';
+                    addPassengerFromCoords(e.latlng.lat, e.latlng.lng, address, name);
+                    cancelPickMode();
+                });
+        }
+    }
+
+    // ========== GEOCODING ==========
+    async function reverseGeocode(lat, lng) {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+        const resp = await fetch(url, { 
+            headers: { 'User-Agent': 'RouteOptimizer/2.0' },
+            signal: AbortSignal.timeout(8000)
+        });
+        const data = await resp.json();
+        if (data && data.display_name) {
+            return data.display_name;
+        }
+        throw new Error('No address found');
+    }
+
+    async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=br`;
+        const resp = await fetch(url, { 
+            headers: { 'User-Agent': 'RouteOptimizer/2.0' },
+            signal: AbortSignal.timeout(8000)
+        });
+        const data = await resp.json();
+        
+        if (data && data.length > 0) {
+            return { 
+                lat: parseFloat(data[0].lat), 
+                lng: parseFloat(data[0].lon), 
+                display: data[0].display_name 
+            };
+        }
+        throw new Error(`Address not found: "${address}"`);
+    }
+
+    // ========== UI UPDATE FUNCTIONS ==========
+    function setStatus(message, type = '') {
+        const statusEl = document.getElementById('apiStatus');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+        }
+    }
+
+    function updateDriverUI() {
+        const badge = document.getElementById('driverBadge');
+        const dot = document.getElementById('driverStatusDot');
+        const nameEl = document.getElementById('driverStatusName');
+        const addrEl = document.getElementById('driverStatusAddr');
+        const removeBtn = document.getElementById('removeDriverBtn');
+
+        if (driver.lat && driver.lng) {
+            if (badge) { badge.textContent = '✅ Set'; badge.className = 'badge'; }
+            if (dot) { dot.className = 'status-dot set'; }
+            if (nameEl) { nameEl.textContent = driver.name; }
+            if (addrEl) { addrEl.textContent = driver.address.substring(0, 50); }
+            if (removeBtn) { removeBtn.disabled = false; }
+        } else {
+            if (badge) { badge.textContent = '❌ Not Set'; badge.className = 'badge empty'; }
+            if (dot) { dot.className = 'status-dot not-set'; }
+            if (nameEl) { nameEl.textContent = 'No driver set'; }
+            if (addrEl) { addrEl.textContent = ''; }
+            if (removeBtn) { removeBtn.disabled = true; }
+        }
+    }
+
+    function updatePassengerCount() {
+        const badge = document.getElementById('passengerBadge');
+        if (badge) {
+            badge.textContent = passengers.length;
+            badge.className = 'badge' + (passengers.length === 0 ? ' empty' : '');
+        }
+    }
+
+    // ========== DRIVER FUNCTIONS ==========
+    function setDriverFromCoords(lat, lng, address) {
+        const driverName = document.getElementById('driverName').value.trim() || "Driver";
+        driver = {
+            lat: lat,
+            lng: lng,
+            address: address,
+            name: driverName
+        };
+        if (map) {
+            map.setView([lat, lng], 14);
+        }
+        currentOrder = [];
+        updateMarkersAndMap();
+        clearRoutes();
+        resetBalloonText();
+        updateDriverUI();
+        setStatus(`✅ Driver set at: ${address.substring(0, 40)}...`, 'success');
+        document.getElementById('driverAddr').className = '';
+    }
+
+    async function setDriver() {
+        const addr = document.getElementById('driverAddr').value.trim();
+        const driverName = document.getElementById('driverName').value.trim() || "Driver";
+        if (!addr) { alert("Enter driver address"); return; }
+        try {
+            setStatus("⏳ Geocoding driver...");
+            const coord = await geocodeAddress(addr);
+            setDriverFromCoords(coord.lat, coord.lng, addr);
+        } catch(e) {
+            alert("Driver location error: " + e.message);
+            setStatus("❌ Geocoding failed - check address", 'error');
+            document.getElementById('driverAddr').className = 'error';
+        }
+    }
+
+    function removeDriver() {
+        if (!driver.lat && !driver.lng) return;
+        if (confirm(`Remove driver "${driver.name}"? This will clear the driver location.`)) {
+            driver = { lat: null, lng: null, address: "", name: "Carlos" };
+            currentOrder = [];
+            updateMarkersAndMap();
+            clearRoutes();
+            resetBalloonText();
+            updateDriverUI();
+            setStatus('🗑️ Driver removed', '');
+            document.getElementById('driverAddr').value = '';
+            document.getElementById('driverName').value = 'Carlos';
+        }
+    }
+
+    // ========== PASSENGER FUNCTIONS ==========
+    function addPassengerFromCoords(lat, lng, address, name) {
+        const newPax = {
+            id: nextId++,
+            name: name,
+            address: address,
+            lat: lat,
+            lng: lng
+        };
+        passengers.push(newPax);
+        currentOrder = [];
+        updatePassengerUI();
+        updateMarkersAndMap();
+        clearRoutes();
+        resetBalloonText();
+        updatePassengerCount();
+        setStatus(`✅ Added: ${name}`, 'success');
+        document.getElementById('paxName').value = '';
+        document.getElementById('paxAddr').value = '';
+        document.getElementById('paxAddr').className = '';
+    }
+
+    async function addPassengerFromUI() {
+        const paxName = document.getElementById('paxName').value.trim();
+        let paxAddr = document.getElementById('paxAddr').value.trim();
+        if (!paxName) { alert("Please enter passenger name"); return false; }
+        if (!paxAddr) { alert("Please enter passenger address or pick from map"); return false; }
+        
+        try {
+            setStatus("⏳ Geocoding...");
+            const coord = await geocodeAddress(paxAddr);
+            addPassengerFromCoords(coord.lat, coord.lng, paxAddr, paxName);
+            return true;
+        } catch(e) {
+            alert(`Failed to add passenger: ${e.message}`);
+            setStatus("❌ Geocoding failed - check address", 'error');
+            document.getElementById('paxAddr').className = 'error';
+            return false;
+        }
+    }
+
+    function deletePassenger(id) {
+        passengers = passengers.filter(p => p.id !== id);
+        currentOrder = [];
+        updatePassengerUI();
+        updateMarkersAndMap();
+        clearRoutes();
+        resetBalloonText();
+        updatePassengerCount();
+        setStatus("🗑️ Passenger removed");
+    }
+
+    // ========== PICK MODE ==========
+    function showPickMode(mode) {
+        pickMode = mode;
+        const indicator = document.getElementById('pickIndicator');
+        const text = document.getElementById('pickModeText');
+        
+        if (mode === 'driver') {
+            if (text) text.textContent = '📍 Click on the map to set DRIVER location';
+            document.getElementById('pickDriverBtn')?.classList.add('active');
+            document.getElementById('pickPassengerBtn')?.classList.remove('active');
+            setStatus('📍 Click on the map to set DRIVER location', 'pick-mode');
+        } else if (mode === 'passenger') {
+            if (text) text.textContent = '📍 Click on the map to add PASSENGER location';
+            document.getElementById('pickPassengerBtn')?.classList.add('active');
+            document.getElementById('pickDriverBtn')?.classList.remove('active');
+            setStatus('📍 Click on the map to add PASSENGER location', 'pick-mode');
+        }
+        
+        if (indicator) indicator.classList.add('show');
+        
+        if (map) {
+            if (tempMarker) map.removeLayer(tempMarker);
+            tempMarker = L.marker(map.getCenter(), {
+                icon: L.divIcon({
+                    html: '📍',
+                    className: '',
+                    iconSize: [30, 30]
+                })
+            }).addTo(map);
+        }
+    }
+
+    function cancelPickMode() {
+        pickMode = null;
+        const indicator = document.getElementById('pickIndicator');
+        if (indicator) indicator.classList.remove('show');
+        document.getElementById('pickDriverBtn')?.classList.remove('active');
+        document.getElementById('pickPassengerBtn')?.classList.remove('active');
+        if (tempMarker && map) {
+            map.removeLayer(tempMarker);
+            tempMarker = null;
+        }
+        setStatus('✅ Pick mode cancelled', 'success');
+        setTimeout(() => {
+            setStatus('📍 Add addresses below to get started');
+        }, 2000);
+    }
+
+    function startPickDriver() {
+        if (pickMode === 'driver') {
+            cancelPickMode();
+        } else {
+            showPickMode('driver');
+        }
+    }
+
+    function startPickPassenger() {
+        const name = document.getElementById('paxName').value.trim();
+        if (!name) {
+            alert("Please enter a passenger name first");
+            document.getElementById('paxName').focus();
+            return;
+        }
+        if (pickMode === 'passenger') {
+            cancelPickMode();
+        } else {
+            showPickMode('passenger');
+        }
+    }
+
+    // ========== PASSENGER UI ==========
+    function updatePassengerUI() {
+        const container = document.getElementById('paxListContainer');
+        if (!container) return;
+        
+        if (passengers.length === 0) {
+            container.innerHTML = '<div style="text-align:center; opacity:0.6; padding:6px; font-size:0.75rem;">✨ No passengers yet</div>';
+            return;
+        }
+        container.innerHTML = '';
+        passengers.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'pax-item';
+            div.draggable = true;
+            div.dataset.id = p.id;
+            const orderIndex = currentOrder.indexOf(p.id);
+            const orderBadge = orderIndex !== -1 ? `<span class="pax-order">#${orderIndex + 1}</span>` : '';
+            div.innerHTML = `
+                <div class="pax-info">
+                    <span class="pax-name">${orderBadge} 🧑 ${escapeHtml(p.name)}</span>
+                    <span class="pax-addr">📍 ${escapeHtml(p.address.substring(0, 45))}</span>
+                </div>
+                <button class="delete-btn" data-id="${p.id}">✖</button>
+            `;
+            div.querySelector('.delete-btn').addEventListener('click', () => deletePassenger(p.id));
+            container.appendChild(div);
+        });
+        updatePassengerCount();
+    }
+
+    // ========== DRAG & DROP ==========
+    function initDragDrop() {
+        let draggedItem = null;
+
+        document.addEventListener('dragstart', function(e) {
+            const item = e.target.closest('.pax-item');
+            if (!item) return;
+            draggedItem = item;
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', item.dataset.id || '');
+        });
+
+        document.addEventListener('dragend', function(e) {
+            const item = e.target.closest('.pax-item');
+            if (item) item.classList.remove('dragging');
+            document.querySelectorAll('.pax-item').forEach(el => el.classList.remove('drag-over'));
+        });
+
+        document.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            const target = e.target.closest('.pax-item');
+            if (!target || target === draggedItem) return;
+            target.classList.add('drag-over');
+        });
+
+        document.addEventListener('dragleave', function(e) {
+            const target = e.target.closest('.pax-item');
+            if (target) target.classList.remove('drag-over');
+        });
+
+        document.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const target = e.target.closest('.pax-item');
+            if (!target || !draggedItem || target === draggedItem) return;
+            
+            target.classList.remove('drag-over');
+            
+            const fromId = parseInt(draggedItem.dataset.id);
+            const toId = parseInt(target.dataset.id);
+            
+            const fromIndex = passengers.findIndex(p => p.id === fromId);
+            const toIndex = passengers.findIndex(p => p.id === toId);
+            
+            if (fromIndex === -1 || toIndex === -1) return;
+            
+            const [removed] = passengers.splice(fromIndex, 1);
+            passengers.splice(toIndex, 0, removed);
+            
+            currentOrder = [];
+            updatePassengerUI();
+            updateMarkersAndMap();
+            clearRoutes();
+            resetBalloonText();
+            setStatus("📋 Passenger order updated via drag & drop", 'success');
+        });
+    }
+
+    // ========== BALLOON DRAGGABLE ==========
+    function makeBalloonDraggable() {
+        const balloon = document.getElementById('routeBalloon');
+        if (!balloon) return;
+        
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        balloon.addEventListener('mousedown', function(e) {
+            if (e.target.closest('.balloon-steps') || e.target.closest('.balloon-header') || e.target.closest('.total-dist')) {
+                isDragging = true;
+                const rect = balloon.getBoundingClientRect();
+                const containerRect = document.getElementById('mapContainer').getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                balloon.style.cursor = 'grabbing';
+                balloon.style.transition = 'none';
+                balloon.style.position = 'absolute';
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            const container = document.getElementById('mapContainer');
+            const containerRect = container.getBoundingClientRect();
+            
+            let newX = e.clientX - containerRect.left - offsetX;
+            let newY = e.clientY - containerRect.top - offsetY;
+            
+            newX = Math.max(0, Math.min(newX, containerRect.width - balloon.offsetWidth));
+            newY = Math.max(0, Math.min(newY, containerRect.height - balloon.offsetHeight));
+            
+            balloon.style.left = newX + 'px';
+            balloon.style.right = 'auto';
+            balloon.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                balloon.style.cursor = 'grab';
+                balloon.style.transition = '';
+            }
+        });
+    }
+
+    // ========== CLEAN MAP MARKERS ==========
+    function updateMarkersAndMap() {
+        if (!map) return;
+        
+        markers.forEach(m => {
+            if (m && map) map.removeLayer(m);
+        });
+        markers = [];
+
+        if (driver.lat && driver.lng) {
+            const icon = L.divIcon({
+                html: '🚗',
+                className: 'custom-marker custom-marker-driver',
+                iconSize: [32, 32],
+                popupAnchor: [0, -15]
+            });
+            const marker = L.marker([driver.lat, driver.lng], { icon }).addTo(map);
+            marker.bindPopup(`<b>🚘 DRIVER: ${escapeHtml(driver.name)}</b><br>${escapeHtml(driver.address)}`);
+            markers.push(marker);
+        }
+
+        passengers.forEach(p => {
+            const isOrdered = currentOrder.includes(p.id);
+            const orderNum = currentOrder.indexOf(p.id);
+            const label = isOrdered ? `${orderNum + 1}` : '👤';
+            const className = isOrdered ? 'custom-marker-pax-ordered' : 'custom-marker-pax';
+            
+            const icon = L.divIcon({
+                html: label,
+                className: `custom-marker ${className}`,
+                iconSize: [28, 28],
+                popupAnchor: [0, -12]
+            });
+            
+            const marker = L.marker([p.lat, p.lng], { icon }).addTo(map);
+            const orderText = isOrdered ? `<br><b>Stop #${orderNum + 1}</b>` : '';
+            marker.bindPopup(`<b>🧑 ${escapeHtml(p.name)}</b>${orderText}<br>📌 ${escapeHtml(p.address)}`);
+            markers.push(marker);
+        });
+
+        if (driver.lat && passengers.length > 0) {
+            const bounds = [[driver.lat, driver.lng], ...passengers.map(p => [p.lat, p.lng])];
+            map.fitBounds(bounds, { padding: [50, 50] });
+        } else if (driver.lat) {
+            map.setView([driver.lat, driver.lng], 13);
+        }
+    }
+
+    // ========== ROUTE FUNCTIONS ==========
+    function clearRoutes() {
+        routeLayers.forEach(layer => {
+            if (layer && map) map.removeLayer(layer);
+        });
+        routeLayers = [];
+    }
+
+    function resetBalloonText() {
+        const stepsDiv = document.getElementById('balloonSteps');
+        const totalDiv = document.getElementById('balloonTotalDistance');
+        if (stepsDiv) {
+            stepsDiv.innerHTML = '<div class="balloon-empty">✨ Press "Find Best Driving Order"</div>';
+        }
+        if (totalDiv) {
+            totalDiv.innerHTML = '📏 Total distance: ---';
+        }
+    }
+
+    function drawRouteWithSegments(orderedNodes, segmentDistances) {
+        clearRoutes();
+        if (!map) return;
+        
+        const colors = ['#4caf7f', '#66bb6a', '#81c784', '#a5d6a7', '#c8e6c9'];
+        
+        for (let i = 0; i < orderedNodes.length - 1; i++) {
+            const from = orderedNodes[i];
+            const to = orderedNodes[i + 1];
+            const latlngs = [[from.lat, from.lng], [to.lat, to.lng]];
+            
+            const color = colors[i % colors.length];
+            
+            const line = L.polyline(latlngs, {
+                color: color,
+                weight: 4,
+                opacity: 0.8,
+                smoothFactor: 1
+            }).addTo(map);
+            routeLayers.push(line);
+            
+            const midLat = (from.lat + to.lat) / 2;
+            const midLng = (from.lng + to.lng) / 2;
+            const dist = segmentDistances[i] || 0;
+            
+            const label = L.marker([midLat, midLng], {
+                icon: L.divIcon({
+                    html: `<div style="background:rgba(0,0,0,0.7);color:#6abf8b;padding:2px 10px;border-radius:12px;font-size:0.65rem;font-weight:600;border:1px solid rgba(106,191,139,0.3);backdrop-filter:blur(8px);white-space:nowrap;">${dist.toFixed(1)} km</div>`,
+                    className: '',
+                    iconSize: [65, 22],
+                    iconAnchor: [32, 11]
+                })
+            }).addTo(map);
+            routeLayers.push(label);
+        }
+    }
+
+    function updateBalloonWithOrder(orderedNodes, totalDistance, segmentDistances) {
+        const stepsDiv = document.getElementById('balloonSteps');
+        if (!stepsDiv) return;
+        
+        let stepsHtml = '';
+        
+        stepsHtml += `<div class="balloon-step-item">
+            <div class="step-row">
+                <span class="step-number driver-step">🚗</span>
+                <span class="step-name">START: ${escapeHtml(driver.name)}</span>
+            </div>
+            <div class="step-address">${escapeHtml(driver.address)}</div>
+        </div>`;
+        
+        for (let i = 1; i < orderedNodes.length; i++) {
+            const p = orderedNodes[i];
+            const passName = p.name || "Passenger";
+            const dist = segmentDistances[i-1] || 0;
+            
+            stepsHtml += `<div class="balloon-step-item">
+                <div class="step-row">
+                    <span class="step-number">${i}</span>
+                    <span class="step-name">${escapeHtml(passName)}</span>
+                    <span class="step-dist">${dist.toFixed(1)} km</span>
+                </div>
+                <div class="step-address">${escapeHtml(p.address)}</div>
+            </div>`;
+        }
+        
+        stepsDiv.innerHTML = stepsHtml;
+        document.getElementById('balloonTotalDistance').innerHTML = `🏁 Total: ${totalDistance.toFixed(1)} km`;
+    }
+
+    // ========== OPTIMIZATION ==========
+    async function getMockDistance(origin, destination) {
+        await sleep(5);
+        return haversineDistance(origin.lat, origin.lng, destination.lat, destination.lng);
+    }
+
+    async function computeOptimalOrder() {
+        if (!driver.lat) throw new Error("Driver location not set");
+        if (passengers.length === 0) throw new Error("No passengers");
+        
+        const nodes = [{ ...driver, type: 'driver', id: 'driver' }, ...passengers.map(p => ({ ...p, type: 'passenger' }))];
+        const n = nodes.length;
+        const distMatrix = Array(n).fill().map(() => Array(n).fill(0));
+        
+        for (let i = 0; i < n; i++) {
+            for (let j = i+1; j < n; j++) {
+                const d = await getMockDistance(
+                    { lat: nodes[i].lat, lng: nodes[i].lng },
+                    { lat: nodes[j].lat, lng: nodes[j].lng }
+                );
+                distMatrix[i][j] = d;
+                distMatrix[j][i] = d;
+            }
+        }
+        
+        let visited = new Array(n).fill(false);
+        visited[0] = true;
+        let orderIndices = [0];
+        let current = 0;
+        let totalDistance = 0;
+        let segmentDistances = [];
+        
+        while (orderIndices.length < n) {
+            let bestIdx = -1;
+            let bestDist = Infinity;
+            for (let i = 0; i < n; i++) {
+                if (!visited[i] && distMatrix[current][i] < bestDist) {
+                    bestDist = distMatrix[current][i];
+                    bestIdx = i;
+                }
+            }
+            totalDistance += bestDist;
+            segmentDistances.push(bestDist);
+            visited[bestIdx] = true;
+            orderIndices.push(bestIdx);
+            current = bestIdx;
+        }
+        
+        const orderedNodes = orderIndices.map(idx => nodes[idx]);
+        return { orderedNodes, totalDistance, segmentDistances };
+    }
+
+    async function optimizeAndRoute() {
+        if (!driver.lat) { alert("Please set driver location first!"); return; }
+        if (passengers.length === 0) { alert("Add at least one passenger"); return; }
+        
+        setStatus("⏳ Optimizing route...");
+        try {
+            const { orderedNodes, totalDistance, segmentDistances } = await computeOptimalOrder();
+            currentOrder = orderedNodes.filter(n => n.type === 'passenger').map(n => n.id);
+            
+            drawRouteWithSegments(orderedNodes, segmentDistances);
+            updateBalloonWithOrder(orderedNodes, totalDistance, segmentDistances);
+            updatePassengerUI();
+            updateMarkersAndMap();
+            
+            setStatus("✅ Route optimized! Check the itinerary.", 'success');
+        } catch(e) {
+            console.error(e);
+            alert("Error: " + e.message);
+            setStatus("❌ Optimization failed.", 'error');
+        }
+    }
+
+    // ========== DEMO ==========
+    async function demoPassengers() {
+        const demoList = [
+            { name: "Alex", addr: "R. Barros Falcão, 365 - Matatu, Salvador - BA" },
+            { name: "Celly", addr: "Av. Dom João VI, 1291 - Brotas, Salvador - BA" },
+            { name: "Jr", addr: "Largo do Campo Grande, s/n - Campo Grande, Salvador - BA" },
+            { name: "Bruno", addr: "Av. Anita Garibaldi, 1234 - Rio Vermelho, Salvador - BA" }
+        ];
+        
+        let added = 0;
+        setStatus("⏳ Adding demo passengers...");
+        for (let demo of demoList) {
+            try {
+                const coord = await geocodeAddress(demo.addr);
+                const newPax = {
+                    id: nextId++,
+                    name: demo.name,
+                    address: demo.addr,
+                    lat: coord.lat,
+                    lng: coord.lng
+                };
+                passengers.push(newPax);
+                added++;
+            } catch(e) {
+                console.warn(`skip: ${demo.addr}`, e);
+            }
+        }
+        currentOrder = [];
+        updatePassengerUI();
+        updateMarkersAndMap();
+        clearRoutes();
+        resetBalloonText();
+        updatePassengerCount();
+        setStatus(`✅ ${added} demo passengers added! Click Optimize.`, 'success');
+    }
+
+    function clearAllPassengers() {
+        if (passengers.length === 0) return;
+        if (confirm("Remove all passengers?")) {
+            passengers = [];
+            currentOrder = [];
+            updatePassengerUI();
+            updateMarkersAndMap();
+            clearRoutes();
+            resetBalloonText();
+            updatePassengerCount();
+            setStatus("🗑️ All passengers cleared");
+        }
+    }
+
+    // ========== DOWNLOAD PNG ==========
+    async function downloadPNG() {
+        try {
+            setStatus("📥 Generating PNG...");
+            const container = document.getElementById('mapContainer');
+            
+            if (map) {
+                map.invalidateSize();
+                await sleep(300);
+            }
+
+            const canvas = await html2canvas(container, {
+                scale: 2.5,
+                useCORS: true,
+                backgroundColor: '#1e2f2f',
+                logging: false,
+                allowTaint: true,
+                width: container.scrollWidth,
+                height: container.scrollHeight,
+                onclone: function(doc) {
+                    const elements = doc.querySelectorAll('*');
+                    elements.forEach(el => {
+                        if (el.style) {
+                            el.style.visibility = 'visible';
+                            el.style.display = '';
+                        }
+                    });
+                }
+            });
+            
+            const link = document.createElement('a');
+            link.download = 'route-map.png';
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+            
+            setStatus("✅ PNG downloaded successfully!", 'success');
+            setTimeout(() => {
+                setStatus('📍 Add addresses below to get started');
+            }, 3000);
+        } catch(err) {
+            console.error('Download error:', err);
+            alert('Download failed: ' + err.message);
+            setStatus("❌ Download failed", 'error');
+        }
+    }
+
+    // ========== DOWNLOAD PDF ==========
+    async function downloadPDF() {
+        try {
+            setStatus("📄 Generating PDF...");
+            const container = document.getElementById('mapContainer');
+            
+            if (map) {
+                map.invalidateSize();
+                await sleep(300);
+            }
+
+            const canvas = await html2canvas(container, {
+                scale: 2.5,
+                useCORS: true,
+                backgroundColor: '#1e2f2f',
+                logging: false,
+                allowTaint: true,
+                width: container.scrollWidth,
+                height: container.scrollHeight,
+                onclone: function(doc) {
+                    const elements = doc.querySelectorAll('*');
+                    elements.forEach(el => {
+                        if (el.style) {
+                            el.style.visibility = 'visible';
+                            el.style.display = '';
+                        }
+                    });
+                }
+            });
+            
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const imgWidth = 297;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save('route-map.pdf');
+            
+            setStatus("✅ PDF downloaded successfully!", 'success');
+            setTimeout(() => {
+                setStatus('📍 Add addresses below to get started');
+            }, 3000);
+        } catch(err) {
+            console.error('PDF error:', err);
+            alert('PDF failed: ' + err.message);
+            setStatus("❌ PDF generation failed", 'error');
+        }
+    }
+
+    // ========== EVENT BINDING ==========
+    function bindEvents() {
+        document.getElementById('setDriverBtn')?.addEventListener('click', setDriver);
+        document.getElementById('pickDriverBtn')?.addEventListener('click', startPickDriver);
+        document.getElementById('removeDriverBtn')?.addEventListener('click', removeDriver);
+        document.getElementById('addPassengerBtn')?.addEventListener('click', addPassengerFromUI);
+        document.getElementById('pickPassengerBtn')?.addEventListener('click', startPickPassenger);
+        document.getElementById('demoBtn')?.addEventListener('click', demoPassengers);
+        document.getElementById('clearBtn')?.addEventListener('click', clearAllPassengers);
+        document.getElementById('optimizeBtn')?.addEventListener('click', optimizeAndRoute);
+        document.getElementById('downloadMapBtn')?.addEventListener('click', downloadPNG);
+        document.getElementById('printMapBtn')?.addEventListener('click', downloadPDF);
+        document.getElementById('cancelPickBtn')?.addEventListener('click', cancelPickMode);
+
+        document.getElementById('driverAddr')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') setDriver();
+        });
+        document.getElementById('paxAddr')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addPassengerFromUI();
+        });
+        document.getElementById('paxName')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addPassengerFromUI();
+        });
+    }
+
+    // ========== INIT ==========
+    function init() {
+        initMap();
+        bindEvents();
+        initDragDrop();
+        makeBalloonDraggable();
+        updateDriverUI();
+        updatePassengerCount();
+        
+        setTimeout(() => {
+            if (!driver.lat) {
+                setDriver().catch(e => console.log("Auto-set driver:", e));
+            }
+        }, 800);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    window.addEventListener('resize', function() {
+        if (map) {
+            setTimeout(() => map.invalidateSize(), 100);
+        }
+    });
+
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && map) {
+            setTimeout(() => map.invalidateSize(), 200);
+        }
+    });
+</script>
+</body>
+</html>
