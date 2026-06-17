@@ -1,0 +1,2166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Route Glide · Smart Optimizer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #0b1a1f;
+            height: 100vh;
+            overflow: hidden;
+            color: #eaf0f5;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #1d323a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #4fbf8b; border-radius: 10px; }
+
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            background: #0b1a1f;
+        }
+
+        .sidebar {
+            width: 380px;
+            min-width: 380px;
+            background: rgba(13, 27, 33, 0.94);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            padding: 18px 16px 20px;
+            gap: 12px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(79, 191, 139, 0.25);
+            box-shadow: 6px 0 30px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        .sidebar h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid #4fbf8b;
+            padding-bottom: 6px;
+        }
+        .lang-group { display: flex; gap: 4px; margin-left: auto; }
+        .lang-group button {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #b6d0d8;
+            padding: 2px 10px;
+            font-size: 0.6rem;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .lang-group button:hover { background: rgba(79,191,139,0.2); border-color: #4fbf8b; }
+        .lang-group button.active { background: #4fbf8b; border-color: #4fbf8b; color: #0b1a1f; }
+
+        .card {
+            background: #1a313a;
+            border-radius: 20px;
+            padding: 12px 14px;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.3);
+            border: 1px solid rgba(79,191,139,0.08);
+        }
+        .card-title {
+            font-weight: 700;
+            font-size: 0.75rem;
+            border-left: 4px solid #4fbf8b;
+            padding-left: 10px;
+            margin-bottom: 8px;
+            color: #d3ecf5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge {
+            font-size: 0.55rem;
+            background: #4fbf8b;
+            padding: 2px 10px;
+            border-radius: 40px;
+            font-weight: 500;
+            color: #0b1a1f;
+        }
+        .badge.empty { background: #b87a3a; color: #fff; }
+
+        input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 40px;
+            border: none;
+            font-size: 0.8rem;
+            background: #26424d;
+            color: #f0f9fe;
+            outline: none;
+            transition: 0.2s;
+        }
+        input::placeholder { color: #99b7c2; }
+        input:focus { background: #2c5563; box-shadow: 0 0 0 2px #4fbf8b; }
+        input.error { border: 2px solid #f67b7b; background: #3d2424; }
+
+        .dual-input { display: flex; gap: 6px; align-items: center; }
+        .dual-input input { flex: 2; margin-bottom: 0; }
+        .dual-input input:first-child { flex: 1; }
+
+        button {
+            background: #4fbf8b;
+            border: none;
+            color: #0b1a1f;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        button:hover { background: #3daa78; transform: scale(0.97); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        button.secondary { background: #2f6d8a; color: #fff; }
+        button.secondary:hover { background: #235a73; }
+        button.danger { background: #b87a3a; color: #fff; }
+        button.danger:hover { background: #a0652c; }
+        button.map-pick {
+            background: #6ac9a0;
+            font-size: 0.65rem;
+            padding: 6px 8px;
+            flex: 1;
+            min-width: 60px;
+        }
+        button.map-pick.active { background: #f5b042; animation: pulse 1s infinite; }
+        button.remove-driver { background: #b87a3a; font-size: 0.6rem; padding: 4px 10px; }
+        button.remove-driver:hover { background: #a0652c; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+
+        .btn-group { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+        .btn-group button { flex: 1; min-width: 45px; }
+        .btn-group .map-pick { flex: 0.7; min-width: 55px; font-size: 0.6rem; }
+
+        .driver-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #0e232b;
+            padding: 4px 10px;
+            border-radius: 30px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            border-left: 3px solid #4fbf8b;
+            flex-wrap: wrap;
+            cursor: pointer;
+        }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .status-dot.set { background: #4fbf8b; }
+        .status-dot.not-set { background: #b87a3a; }
+        .driver-status .driver-name {
+            font-weight: 600;
+            color: #f5e3b0;
+            cursor: pointer;
+            padding: 0 4px;
+            font-size: 0.7rem;
+        }
+        .driver-status .driver-name:hover { background: rgba(255,255,255,0.05); }
+        .driver-status .driver-addr {
+            opacity: 0.7;
+            font-size: 0.6rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .driver-status .driver-addr:hover { background: rgba(255,255,255,0.04); }
+        .driver-status .driver-phone {
+            font-size: 0.55rem;
+            background: rgba(0,0,0,0.2);
+            padding: 1px 8px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+            min-width: 35px;
+            text-align: center;
+            color: #7ad0a8;
+        }
+        .driver-status .driver-phone:hover {
+            background: rgba(79,191,139,0.25);
+            color: #f0f9fe;
+        }
+        .driver-status .driver-phone.empty-phone {
+            opacity: 0.4;
+            font-style: italic;
+            color: #99b7c2;
+        }
+        .driver-status .driver-phone.empty-phone:hover {
+            opacity: 0.7;
+            background: rgba(245,160,60,0.15);
+            color: #f5d742;
+        }
+
+        .passenger-list {
+            max-height: 140px;
+            overflow-y: auto;
+            margin: 4px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .pax-item {
+            background: #0e232b;
+            padding: 4px 8px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #f5b87a;
+            font-size: 0.75rem;
+            cursor: grab;
+        }
+        .pax-item:active { cursor: grabbing; }
+        .pax-item.dragging { opacity: 0.5; border-color: #4fbf8b; }
+        .pax-item.drag-over { border-color: #4fbf8b; background: #1a403a; }
+        .pax-info { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-width: 0; }
+        .pax-name {
+            font-weight: 700;
+            font-size: 0.7rem;
+            color: #f5e3b0;
+            cursor: pointer;
+            padding: 1px 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .pax-name:hover { background: rgba(255,255,255,0.04); }
+        .pax-name .phone-badge {
+            font-size: 0.5rem;
+            font-weight: 400;
+            opacity: 0.6;
+            background: rgba(0,0,0,0.15);
+            padding: 0 8px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #7ad0a8;
+        }
+        .pax-name .phone-badge:hover {
+            background: rgba(79,191,139,0.25);
+            opacity: 1;
+            color: #f0f9fe;
+        }
+        .pax-name .phone-badge.empty-phone {
+            opacity: 0.3;
+            font-style: italic;
+            color: #99b7c2;
+        }
+        .pax-name .phone-badge.empty-phone:hover {
+            opacity: 0.7;
+            color: #f5d742;
+            background: rgba(245,160,60,0.15);
+        }
+        .pax-addr {
+            font-size: 0.55rem;
+            opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .pax-addr:hover { background: rgba(255,255,255,0.04); }
+        .pax-order {
+            font-size: 0.6rem;
+            background: #4fbf8b;
+            color: #0b1a1f;
+            padding: 0 6px;
+            border-radius: 30px;
+            margin-right: 4px;
+            font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+        }
+        .delete-btn {
+            background: none;
+            color: #f5a57a;
+            border: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 0 4px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .delete-btn:hover { color: #f67b7b; }
+
+        .status {
+            font-size: 0.65rem;
+            background: #0b1f26;
+            padding: 6px 10px;
+            border-radius: 40px;
+            margin-top: 4px;
+            text-align: center;
+            min-height: 30px;
+            border: 1px solid rgba(79,191,139,0.08);
+        }
+        .status.error { background: #3d1a1a; color: #f67b7b; border-color: #f67b7b; }
+        .status.success { background: #1a3d2a; color: #7ad0a8; border-color: #4fbf8b; }
+        .status.pick-mode { background: #3d3a1a; color: #f5d742; border-color: #f5d742; }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            background: #14262b;
+            overflow: hidden;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+            background: #14262b;
+        }
+
+        .search-container {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 420px;
+            max-width: calc(100% - 28px);
+        }
+        .search-wrapper { position: relative; width: 100%; }
+        .search-wrapper input {
+            width: 100%;
+            padding: 10px 18px;
+            padding-right: 44px;
+            border-radius: 60px;
+            border: none;
+            background: rgba(13,27,33,0.92);
+            backdrop-filter: blur(12px);
+            color: #f0f9fe;
+            font-size: 0.85rem;
+            outline: none;
+            border: 1px solid rgba(79,191,139,0.25);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .search-wrapper input:focus { border-color: #4fbf8b; box-shadow: 0 6px 24px rgba(79,191,139,0.15); }
+        .search-wrapper input::placeholder { color: rgba(255,255,255,0.4); }
+        .search-wrapper .search-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.3);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+        .search-results {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: rgba(13,27,33,0.96);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            border: 1px solid rgba(79,191,139,0.2);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1001;
+        }
+        .search-results.show { display: block; }
+        .search-result-item {
+            padding: 8px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .search-result-item:hover { background: rgba(79,191,139,0.12); }
+        .search-result-item .result-name { color: #f0f9fe; font-size: 0.8rem; font-weight: 500; }
+        .search-result-item .result-address { color: rgba(255,255,255,0.4); font-size: 0.65rem; }
+        .search-no-results { padding: 10px 14px; color: rgba(255,255,255,0.3); text-align: center; font-size: 0.75rem; }
+
+        .right-panel {
+            width: 380px;
+            min-width: 380px;
+            background: rgba(13,27,33,0.95);
+            backdrop-filter: blur(4px);
+            border-left: 1px solid rgba(79,191,139,0.2);
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 16px 18px 12px;
+            border-bottom: 1px solid rgba(79,191,139,0.15);
+            flex-shrink: 0;
+            background: rgba(13,27,33,0.98);
+        }
+        .panel-header h3 {
+            font-size: 1rem;
+            color: #7ad0a8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+        .panel-header .panel-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .panel-header .panel-actions button {
+            padding: 4px 12px;
+            font-size: 0.6rem;
+            background: rgba(79,191,139,0.15);
+            color: #7ad0a8;
+            border: 1px solid rgba(79,191,139,0.15);
+        }
+        .panel-header .panel-actions button:hover { background: rgba(79,191,139,0.25); }
+        .panel-header .panel-actions button.danger {
+            color: #f67b7b;
+            border-color: rgba(246,123,123,0.2);
+            background: rgba(246,123,123,0.1);
+        }
+        .panel-header .panel-actions button.danger:hover { background: rgba(246,123,123,0.2); }
+
+        .panel-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px 16px;
+        }
+        .panel-scroll::-webkit-scrollbar { width: 4px; }
+        .panel-scroll::-webkit-scrollbar-track { background: rgba(30,58,66,0.2); border-radius: 10px; }
+        .panel-scroll::-webkit-scrollbar-thumb { background: rgba(79,191,139,0.3); border-radius: 10px; }
+
+        .panel-footer {
+            padding: 12px 18px 16px;
+            border-top: 1px solid rgba(79,191,139,0.1);
+            flex-shrink: 0;
+            background: rgba(13,27,33,0.98);
+        }
+        .panel-footer .total-dist {
+            font-weight: 700;
+            background: rgba(15,46,40,0.4);
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            color: #7ad0a8;
+            border: 1px solid rgba(79,191,139,0.1);
+            width: 100%;
+            text-align: center;
+            display: block;
+        }
+
+        .itinerary-item {
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            border-radius: 8px;
+            transition: 0.15s;
+            cursor: pointer;
+            background: rgba(255,255,255,0.02);
+        }
+        .itinerary-item:hover { background: rgba(255,255,255,0.04); }
+        .itinerary-item .step-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .itinerary-item .step-number {
+            background: rgba(79,191,139,0.2);
+            color: #7ad0a8;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .itinerary-item .step-number.driver-step {
+            background: rgba(245,200,80,0.2);
+            color: #f5d742;
+            font-size: 11px;
+        }
+        .itinerary-item .step-name {
+            font-weight: 600;
+            color: #f5e3b0;
+            cursor: pointer;
+            padding: 0 4px;
+            font-size: 0.85rem;
+        }
+        .itinerary-item .step-name:hover { background: rgba(255,255,255,0.03); }
+        .itinerary-item .step-phone {
+            font-size: 0.65rem;
+            opacity: 0.6;
+            background: rgba(0,0,0,0.15);
+            padding: 0 8px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #7ad0a8;
+        }
+        .itinerary-item .step-phone:hover {
+            background: rgba(79,191,139,0.25);
+            opacity: 1;
+            color: #f0f9fe;
+        }
+        .itinerary-item .step-phone.empty-phone {
+            opacity: 0.3;
+            font-style: italic;
+            color: #99b7c2;
+        }
+        .itinerary-item .step-phone.empty-phone:hover {
+            opacity: 0.7;
+            color: #f5d742;
+            background: rgba(245,160,60,0.15);
+        }
+        .itinerary-item .step-dist {
+            color: rgba(79,191,139,0.7);
+            margin-left: auto;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.15);
+            padding: 0 10px;
+            border-radius: 30px;
+        }
+        .itinerary-item .step-address {
+            font-size: 0.7rem;
+            opacity: 0.55;
+            padding-left: 28px;
+            word-wrap: break-word;
+            white-space: normal;
+            line-height: 1.3;
+            color: #c3dce5;
+            cursor: pointer;
+            padding: 2px 4px 2px 28px;
+        }
+        .itinerary-item .step-address:hover { background: rgba(255,255,255,0.02); }
+
+        .itinerary-empty {
+            text-align: center;
+            opacity: 0.4;
+            padding: 30px 0;
+            font-size: 0.9rem;
+            color: #99b7c2;
+        }
+        .itinerary-empty .empty-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+        .map-controls {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            z-index: 999;
+            display: flex;
+            gap: 8px;
+        }
+        .map-controls button {
+            padding: 6px 14px;
+            font-size: 0.65rem;
+            background: rgba(13,27,33,0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(79,191,139,0.3);
+            color: #d3ecf5;
+            border-radius: 40px;
+        }
+        .map-controls button:hover { background: rgba(79,191,139,0.2); }
+
+        .pick-indicator {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(245,170,60,0.92);
+            color: #0b1a1f;
+            padding: 8px 24px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+            animation: pulse 1.5s infinite;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .pick-indicator.show { display: block; }
+        .pick-indicator .cancel-pick {
+            background: rgba(0,0,0,0.15);
+            border: none;
+            color: #0b1a1f;
+            padding: 2px 12px;
+            border-radius: 40px;
+            margin-left: 12px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .pick-indicator .cancel-pick:hover { background: rgba(0,0,0,0.25); }
+
+        .custom-marker {
+            border-radius: 50%;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.85);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+            color: #fff;
+            pointer-events: auto;
+            transition: 0.2s;
+        }
+        .custom-marker:hover { transform: scale(1.1); }
+        .custom-marker-driver {
+            background: #2a7a4e;
+            border: 2px solid #f5d742;
+            font-size: 0.9rem;
+            width: 34px;
+            height: 34px;
+        }
+        .custom-marker-pax { background: #e8944a; }
+        .custom-marker-pax-ordered { background: #4fbf8b; border: 2px solid #a5e0c0; }
+
+        .leaflet-tile-pane { filter: brightness(0.92) contrast(1.05); }
+        .leaflet-control-zoom {
+            border: none !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+        }
+        .leaflet-control-zoom a {
+            background: rgba(13,27,33,0.9) !important;
+            color: #eaf0f5 !important;
+            border-color: rgba(79,191,139,0.2) !important;
+        }
+        .leaflet-control-zoom a:hover { background: rgba(79,191,139,0.2) !important; }
+
+        .edit-input {
+            background: #1a3a2a !important;
+            border: 1px solid #4fbf8b !important;
+            color: #f0f9fe !important;
+            padding: 2px 10px !important;
+            border-radius: 8px !important;
+            font-size: 0.75rem !important;
+            width: auto !important;
+            min-width: 80px !important;
+            display: inline-block !important;
+            margin: 0 !important;
+        }
+        .edit-input:focus { outline: none !important; box-shadow: 0 0 12px rgba(79,191,139,0.3) !important; }
+        .address-edit-input {
+            background: #1a3a2a !important;
+            border: 1px solid #4fbf8b !important;
+            color: #f0f9fe !important;
+            padding: 2px 10px !important;
+            border-radius: 8px !important;
+            font-size: 0.6rem !important;
+            width: 100% !important;
+            min-width: 100px !important;
+        }
+        .phone-edit-input {
+            background: #1a3a2a !important;
+            border: 1px solid #4fbf8b !important;
+            color: #f0f9fe !important;
+            padding: 1px 8px !important;
+            border-radius: 8px !important;
+            font-size: 0.55rem !important;
+            width: auto !important;
+            min-width: 60px !important;
+        }
+
+        @media (max-width: 1200px) {
+            .sidebar { width: 320px; min-width: 320px; }
+            .right-panel { width: 320px; min-width: 320px; }
+            .search-container { width: 350px; }
+        }
+        @media (max-width: 900px) {
+            .sidebar { width: 280px; min-width: 280px; padding: 12px; }
+            .right-panel { width: 280px; min-width: 280px; }
+            .search-container { width: 280px; }
+        }
+        @media (max-width: 700px) {
+            .app { flex-direction: column; }
+            .sidebar { width: 100%; min-width: unset; max-height: 35vh; border-right: none; border-bottom: 1px solid rgba(79,191,139,0.2); }
+            .right-panel { width: 100%; min-width: unset; max-height: 30vh; border-left: none; border-top: 1px solid rgba(79,191,139,0.2); }
+            .map-container { flex: 1; }
+            .search-container { width: calc(100% - 24px); top: 8px; }
+            .custom-marker { width: 22px; height: 22px; font-size: 0.55rem; }
+            .custom-marker-driver { width: 28px; height: 28px; font-size: 0.8rem; }
+            .map-controls { bottom: 8px; left: 8px; }
+            .map-controls button { padding: 4px 10px; font-size: 0.55rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h2>
+            <span>🌀 ROUTE GLIDE</span>
+            <div class="lang-group">
+                <button class="active" data-lang="en">EN</button>
+                <button data-lang="es">ES</button>
+                <button data-lang="pt">PT</button>
+            </div>
+        </h2>
+
+        <div class="card">
+            <div class="card-title"><span>🧠 SMART ORDER</span></div>
+            <button id="optimizeBtn" class="success" style="width:100%; padding: 8px;">✨ FIND OPTIMAL PATH</button>
+            <div class="status" id="apiStatus">📍 Add driver & passengers to begin</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>🚗 DRIVER</span>
+                <span class="badge empty" id="driverBadge">Not Set</span>
+            </div>
+            <div class="dual-input">
+                <input type="text" id="driverName" placeholder="Name" value="">
+                <input type="text" id="driverAddr" placeholder="Address" value="">
+            </div>
+            <div class="dual-input" style="margin-top:4px;">
+                <input type="tel" id="driverPhone" placeholder="Phone (optional)" value="" style="flex:1;">
+            </div>
+            <div class="btn-group">
+                <button id="setDriverBtn">Set</button>
+                <button id="pickDriverBtn" class="map-pick">📍 Pick</button>
+                <button id="removeDriverBtn" class="remove-driver" disabled>✕</button>
+            </div>
+            <div class="driver-status" id="driverStatus">
+                <span class="status-dot not-set" id="driverStatusDot"></span>
+                <span class="driver-name" id="driverStatusName">No driver set</span>
+                <span class="driver-addr" id="driverStatusAddr"></span>
+                <span class="driver-phone" id="driverStatusPhone">📞 Phone</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>👥 PASSENGERS</span>
+                <span class="badge empty" id="passengerBadge">0</span>
+            </div>
+            <div class="dual-input">
+                <input type="text" id="paxName" placeholder="Name" value="">
+                <input type="text" id="paxAddr" placeholder="Address" value="">
+            </div>
+            <div class="dual-input" style="margin-top:4px;">
+                <input type="tel" id="paxPhone" placeholder="Phone (optional)" value="" style="flex:1;">
+            </div>
+            <div class="btn-group">
+                <button id="addPassengerBtn">➕ Add</button>
+                <button id="pickPassengerBtn" class="map-pick">📍 Pick</button>
+                <button id="demoBtn" class="secondary">🎲 Demo</button>
+                <button id="clearBtn" class="danger">🗑️</button>
+            </div>
+            <div class="passenger-list" id="paxListContainer">
+                <div style="text-align:center; opacity:0.5; padding:6px; font-size:0.7rem;">✨ No passengers yet</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-container" id="mapContainer">
+        <div id="map"></div>
+
+        <div class="search-container">
+            <div class="search-wrapper">
+                <input type="text" id="searchInput" placeholder="🔍 Search address..." autocomplete="off">
+                <span class="search-icon">🔍</span>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+        </div>
+
+        <div class="pick-indicator" id="pickIndicator">
+            <span id="pickModeText">📍 Tap map to set location</span>
+            <button class="cancel-pick" id="cancelPickBtn">✕ Cancel</button>
+        </div>
+
+        <div class="map-controls">
+            <button id="downloadMapBtn">📥 PNG</button>
+            <button id="printMapBtn">📄 PDF</button>
+            <button id="zoomFitBtn">🔍 Fit</button>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel" id="rightPanel">
+        <div class="panel-header">
+            <h3>
+                <span>📋 OPTIMAL ROUTE</span>
+                <span style="font-size:0.65rem; opacity:0.4;" id="stopCount">0 stops</span>
+            </h3>
+            <div class="panel-actions">
+                <button id="clearRouteBtn" class="danger">🗑️ Clear Route</button>
+                <button id="exportRouteBtn">📤 Export</button>
+                <button id="printRouteBtn">🖨️ Print</button>
+            </div>
+        </div>
+
+        <div class="panel-scroll" id="panelScroll">
+            <div id="panelSteps">
+                <div class="itinerary-empty">
+                    <span class="empty-icon">🗺️</span>
+                    <span>✨ Add a driver, add passengers, then click "Find Optimal Path"</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-footer">
+            <span class="total-dist" id="panelTotalDistance">📏 Total: ---</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== TRANSLATIONS ==========
+    const translations = {
+        en: {
+            apiStatus: '📍 Add driver & passengers to begin',
+            driverNotSet: 'No driver set',
+            driverSet: '✅ Set',
+            driverNotSetBadge: 'Not Set',
+            noPassengers: '✨ No passengers yet',
+            phonePlaceholder: '📞 Phone',
+            balloonEmpty: '✨ Add a driver, add passengers, then click "Find Optimal Path"',
+            totalDistance: '📏 Total: ---',
+            driverRemoved: '🗑️ Driver removed',
+            passengersCleared: '🗑️ All passengers cleared',
+            pngDownloaded: '✅ PNG downloaded!',
+            pdfDownloaded: '✅ PDF downloaded!',
+            pickModeCancelled: '✅ Pick mode off',
+            routeOptimized: '✅ Route optimized!',
+            optimizationFailed: '❌ Optimization failed',
+            geocodingFailed: '❌ Geocoding failed',
+            demoAdded: '✅ {count} demo passengers added!',
+            passengerAdded: '✅ Added: {name}',
+            passengerRemoved: '🗑️ Passenger removed',
+            orderUpdated: '📋 Order updated via drag',
+            mapReady: '📍 Map ready',
+            generatingPNG: '📥 Generating PNG...',
+            generatingPDF: '📄 Generating PDF...',
+            geocoding: '⏳ Geocoding...',
+            optimizing: '⏳ Optimizing...',
+            addingDemo: '⏳ Adding demo...',
+            searchPlaceholder: '🔍 Search address...',
+            gettingLocation: '📍 Getting your location...',
+            locationError: '⚠️ Could not get location. Showing default map.',
+            locationSuccess: '📍 Location found!',
+            clearRoute: '🗑️ Clear Route',
+            exportRoute: '📤 Export',
+            printRoute: '🖨️ Print',
+            fitMap: '🔍 Fit',
+            clickToEdit: 'Click to edit phone',
+            optimalRoute: '📋 OPTIMAL ROUTE',
+            total: '📏 Total:',
+            stops: 'stops',
+            start: 'START',
+            driverLabel: '🚗 DRIVER',
+            passengersLabel: '👥 PASSENGERS'
+        },
+        es: {
+            apiStatus: '📍 Añade conductor y pasajeros',
+            driverNotSet: 'Sin conductor',
+            driverSet: '✅ Fijado',
+            driverNotSetBadge: 'No Fijado',
+            noPassengers: '✨ Sin pasajeros aún',
+            phonePlaceholder: '📞 Teléfono',
+            balloonEmpty: '✨ Añade conductor, pasajeros y presiona "Ruta Óptima"',
+            totalDistance: '📏 Total: ---',
+            driverRemoved: '🗑️ Conductor eliminado',
+            passengersCleared: '🗑️ Pasajeros eliminados',
+            pngDownloaded: '✅ PNG descargado!',
+            pdfDownloaded: '✅ PDF descargado!',
+            pickModeCancelled: '✅ Modo selección off',
+            routeOptimized: '✅ Ruta optimizada!',
+            optimizationFailed: '❌ Falló optimización',
+            geocodingFailed: '❌ Falló geocodificación',
+            demoAdded: '✅ {count} pasajeros demo añadidos!',
+            passengerAdded: '✅ Añadido: {name}',
+            passengerRemoved: '🗑️ Pasajero eliminado',
+            orderUpdated: '📋 Orden actualizado por drag',
+            mapReady: '📍 Mapa listo',
+            generatingPNG: '📥 Generando PNG...',
+            generatingPDF: '📄 Generando PDF...',
+            geocoding: '⏳ Geocodificando...',
+            optimizing: '⏳ Optimizando...',
+            addingDemo: '⏳ Añadiendo demo...',
+            searchPlaceholder: '🔍 Buscar dirección...',
+            gettingLocation: '📍 Obteniendo tu ubicación...',
+            locationError: '⚠️ No se pudo obtener ubicación. Mostrando mapa por defecto.',
+            locationSuccess: '📍 Ubicación encontrada!',
+            clearRoute: '🗑️ Limpiar Ruta',
+            exportRoute: '📤 Exportar',
+            printRoute: '🖨️ Imprimir',
+            fitMap: '🔍 Ajustar',
+            clickToEdit: 'Clic para editar teléfono',
+            optimalRoute: '📋 RUTA ÓPTIMA',
+            total: '📏 Total:',
+            stops: 'paradas',
+            start: 'INICIO',
+            driverLabel: '🚗 CONDUCTOR',
+            passengersLabel: '👥 PASAJEROS'
+        },
+        pt: {
+            apiStatus: '📍 Adicione motorista e passageiros',
+            driverNotSet: 'Sem motorista',
+            driverSet: '✅ Definido',
+            driverNotSetBadge: 'Não Definido',
+            noPassengers: '✨ Nenhum passageiro ainda',
+            phonePlaceholder: '📞 Telefone',
+            balloonEmpty: '✨ Adicione motorista, passageiros e pressione "Rota Ótima"',
+            totalDistance: '📏 Total: ---',
+            driverRemoved: '🗑️ Motorista removido',
+            passengersCleared: '🗑️ Passageiros removidos',
+            pngDownloaded: '✅ PNG baixado!',
+            pdfDownloaded: '✅ PDF baixado!',
+            pickModeCancelled: '✅ Modo seleção off',
+            routeOptimized: '✅ Rota otimizada!',
+            optimizationFailed: '❌ Falha na otimização',
+            geocodingFailed: '❌ Falha na geocodificação',
+            demoAdded: '✅ {count} passageiros demo adicionados!',
+            passengerAdded: '✅ Adicionado: {name}',
+            passengerRemoved: '🗑️ Passageiro removido',
+            orderUpdated: '📋 Ordem atualizada por drag',
+            mapReady: '📍 Mapa pronto',
+            generatingPNG: '📥 Gerando PNG...',
+            generatingPDF: '📄 Gerando PDF...',
+            geocoding: '⏳ Geocodificando...',
+            optimizing: '⏳ Otimizando...',
+            addingDemo: '⏳ Adicionando demo...',
+            searchPlaceholder: '🔍 Buscar endereço...',
+            gettingLocation: '📍 Obtendo sua localização...',
+            locationError: '⚠️ Não foi possível obter localização. Mostrando mapa padrão.',
+            locationSuccess: '📍 Localização encontrada!',
+            clearRoute: '🗑️ Limpar Rota',
+            exportRoute: '📤 Exportar',
+            printRoute: '🖨️ Imprimir',
+            fitMap: '🔍 Ajustar',
+            clickToEdit: 'Clique para editar telefone',
+            optimalRoute: '📋 ROTA ÓTIMA',
+            total: '📏 Total:',
+            stops: 'paradas',
+            start: 'INÍCIO',
+            driverLabel: '🚗 MOTORISTA',
+            passengersLabel: '👥 PASSAGEIROS'
+        }
+    };
+
+    let currentLang = 'en';
+
+    function t(key, repl = {}) {
+        let txt = translations[currentLang][key] || key;
+        for (let [k, v] of Object.entries(repl)) txt = txt.replace(`{${k}}`, v);
+        return txt;
+    }
+
+    // ========== HELPERS ==========
+    function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function escapeHtml(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ========== STATE ==========
+    let map = null;
+    let driver = { lat: null, lng: null, address: '', name: '', phone: '' };
+    let passengers = [];
+    let markers = [];
+    let routeLayers = [];
+    let nextId = 1;
+    let currentOrder = [];
+    let pickMode = null;
+    let tempMarker = null;
+    let editingElement = null;
+    let searchMarker = null;
+    let searchTimeout = null;
+    let userLocation = null;
+    
+    // Store route data for language changes
+    let cachedRouteData = null;
+
+    // ========== MAP INIT ==========
+    function initMap() {
+        if (map) { map.invalidateSize(); return; }
+        const container = document.getElementById('map');
+        if (!container) { setTimeout(initMap, 400); return; }
+
+        map = L.map('map', {
+            center: [40.7128, -74.0060],
+            zoom: 13,
+            zoomControl: true,
+            fadeAnimation: true,
+            preferCanvas: true
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OSM',
+            maxZoom: 19,
+            subdomains: 'abcd'
+        }).addTo(map);
+
+        map.whenReady(() => setTimeout(() => map.invalidateSize(), 100));
+        setTimeout(() => { if (map) map.invalidateSize(); }, 300);
+        map.on('click', handleMapClick);
+        setupSearch();
+        getUserLocation();
+        setStatus(t('mapReady'), '');
+    }
+
+    // ========== GEOLOCATION ==========
+    function getUserLocation() {
+        if (!navigator.geolocation) {
+            setStatus(t('locationError'), 'error');
+            return;
+        }
+        setStatus(t('gettingLocation'), '');
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                userLocation = { lat: latitude, lng: longitude };
+                if (map) {
+                    map.setView([latitude, longitude], 15);
+                    if (searchMarker) map.removeLayer(searchMarker);
+                    searchMarker = L.marker([latitude, longitude], {
+                        icon: L.divIcon({ html: '📍', className: '', iconSize: [30, 30] })
+                    }).addTo(map);
+                    reverseGeocode(latitude, longitude)
+                        .then(address => {
+                            setStatus(`📍 ${t('locationSuccess')}`, 'success');
+                            document.getElementById('driverAddr').value = address;
+                        })
+                        .catch(() => setStatus(`📍 ${t('locationSuccess')}`, 'success'));
+                }
+            },
+            (error) => {
+                console.warn('Geolocation error:', error);
+                setStatus(t('locationError'), 'error');
+                if (map) map.setView([40.7128, -74.0060], 13);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    }
+
+    async function reverseGeocode(lat, lng) {
+        try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, {
+                headers: { 'User-Agent': 'RouteGlide/2.0' }
+            });
+            const data = await resp.json();
+            return data?.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        } catch { return `${lat.toFixed(5)}, ${lng.toFixed(5)}`; }
+    }
+
+    // ========== SEARCH ==========
+    function setupSearch() {
+        const input = document.getElementById('searchInput');
+        const results = document.getElementById('searchResults');
+        if (!input) return;
+        input.addEventListener('input', function() {
+            const q = this.value.trim();
+            if (q.length < 2) { results.classList.remove('show'); return; }
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => performSearch(q), 300);
+        });
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.search-wrapper')) results.classList.remove('show');
+        });
+    }
+
+    async function performSearch(q) {
+        const results = document.getElementById('searchResults');
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8&addressdetails=1`;
+            const resp = await fetch(url, { headers: { 'User-Agent': 'RouteGlide/2.0' } });
+            const data = await resp.json();
+            if (!data || !data.length) {
+                results.innerHTML = `<div class="search-no-results">No results for "${q}"</div>`;
+                results.classList.add('show');
+                return;
+            }
+            let html = '';
+            data.forEach(item => {
+                const name = item.display_name.split(',').slice(0, 3).join(',');
+                html += `<div class="search-result-item" data-lat="${item.lat}" data-lng="${item.lon}" data-address="${escapeHtml(item.display_name)}">
+                    <div class="result-name">${escapeHtml(name)}</div>
+                    <div class="result-address">${escapeHtml(item.display_name.substring(0, 70))}</div>
+                </div>`;
+            });
+            results.innerHTML = html;
+            results.classList.add('show');
+            results.querySelectorAll('.search-result-item').forEach(el => {
+                el.addEventListener('click', function() {
+                    const lat = parseFloat(this.dataset.lat);
+                    const lng = parseFloat(this.dataset.lng);
+                    const addr = this.dataset.address;
+                    results.classList.remove('show');
+                    document.getElementById('searchInput').value = addr;
+                    document.getElementById('searchInput').blur();
+                    if (pickMode === 'driver') {
+                        document.getElementById('driverAddr').value = addr;
+                        setDriverFromCoords(lat, lng, addr);
+                        cancelPickMode();
+                    } else if (pickMode === 'passenger') {
+                        document.getElementById('paxAddr').value = addr;
+                        const name = document.getElementById('paxName').value.trim() || 'Passenger';
+                        const phone = document.getElementById('paxPhone').value.trim() || '';
+                        addPassengerFromCoords(lat, lng, addr, name, phone);
+                        cancelPickMode();
+                    } else {
+                        map.setView([lat, lng], 15);
+                        if (searchMarker) map.removeLayer(searchMarker);
+                        searchMarker = L.marker([lat, lng], {
+                            icon: L.divIcon({ html: '📍', className: '', iconSize: [30, 30] })
+                        }).addTo(map);
+                    }
+                });
+            });
+        } catch (e) {
+            results.innerHTML = `<div class="search-no-results">Search error</div>`;
+            results.classList.add('show');
+        }
+    }
+
+    // ========== MAP CLICK ==========
+    async function handleMapClick(e) {
+        if (!pickMode) return;
+        const { lat, lng } = e.latlng;
+        try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, {
+                headers: { 'User-Agent': 'RouteGlide/2.0' }
+            });
+            const data = await resp.json();
+            const addr = data?.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            if (pickMode === 'driver') {
+                document.getElementById('driverAddr').value = addr;
+                setDriverFromCoords(lat, lng, addr);
+                cancelPickMode();
+            } else if (pickMode === 'passenger') {
+                document.getElementById('paxAddr').value = addr;
+                const name = document.getElementById('paxName').value.trim() || 'Passenger';
+                const phone = document.getElementById('paxPhone').value.trim() || '';
+                addPassengerFromCoords(lat, lng, addr, name, phone);
+                cancelPickMode();
+            }
+        } catch {
+            const addr = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            if (pickMode === 'driver') {
+                document.getElementById('driverAddr').value = addr;
+                setDriverFromCoords(lat, lng, addr);
+                cancelPickMode();
+            } else if (pickMode === 'passenger') {
+                document.getElementById('paxAddr').value = addr;
+                const name = document.getElementById('paxName').value.trim() || 'Passenger';
+                const phone = document.getElementById('paxPhone').value.trim() || '';
+                addPassengerFromCoords(lat, lng, addr, name, phone);
+                cancelPickMode();
+            }
+        }
+    }
+
+    // ========== DRIVER ==========
+    function setDriverFromCoords(lat, lng, address) {
+        const name = document.getElementById('driverName').value.trim() || 'Driver';
+        const phone = document.getElementById('driverPhone').value.trim() || '';
+        driver = { lat, lng, address, name, phone };
+        if (map) map.setView([lat, lng], 14);
+        currentOrder = [];
+        cachedRouteData = null;
+        updateMarkersAndMap();
+        clearRoutes();
+        resetItinerary();
+        updateDriverUI();
+        setStatus(`✅ Driver set: ${address.substring(0, 40)}...`, 'success');
+        document.getElementById('driverAddr').className = '';
+    }
+
+    async function setDriver() {
+        const addr = document.getElementById('driverAddr').value.trim();
+        if (!addr) { setStatus('⚠️ Enter an address', 'error'); return; }
+        try {
+            setStatus(t('geocoding'));
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`);
+            const data = await resp.json();
+            if (!data || !data.length) throw new Error('not found');
+            const { lat, lon } = data[0];
+            driver = {
+                lat: parseFloat(lat),
+                lng: parseFloat(lon),
+                address: addr,
+                name: document.getElementById('driverName').value.trim() || 'Driver',
+                phone: document.getElementById('driverPhone').value.trim() || ''
+            };
+            if (map) map.setView([parseFloat(lat), parseFloat(lon)], 14);
+            currentOrder = [];
+            cachedRouteData = null;
+            updateMarkersAndMap();
+            clearRoutes();
+            resetItinerary();
+            updateDriverUI();
+            setStatus(`✅ Driver set: ${addr.substring(0, 40)}...`, 'success');
+            document.getElementById('driverAddr').className = '';
+        } catch (e) {
+            setStatus(t('geocodingFailed'), 'error');
+            document.getElementById('driverAddr').className = 'error';
+        }
+    }
+
+    function removeDriver() {
+        if (!driver.lat) return;
+        if (!confirm(`Remove driver "${driver.name || 'Unnamed'}"?`)) return;
+        driver = { lat: null, lng: null, address: '', name: '', phone: '' };
+        currentOrder = [];
+        cachedRouteData = null;
+        updateMarkersAndMap();
+        clearRoutes();
+        resetItinerary();
+        updateDriverUI();
+        setStatus(t('driverRemoved'), '');
+        document.getElementById('driverAddr').value = '';
+        document.getElementById('driverName').value = '';
+        document.getElementById('driverPhone').value = '';
+    }
+
+    // ========== PASSENGERS ==========
+    function addPassengerFromCoords(lat, lng, address, name, phone = '') {
+        const p = { id: nextId++, name, address, lat, lng, phone };
+        passengers.push(p);
+        currentOrder = [];
+        cachedRouteData = null;
+        updatePassengerUI();
+        updateMarkersAndMap();
+        clearRoutes();
+        resetItinerary();
+        updatePassengerBadge();
+        setStatus(t('passengerAdded', { name }), 'success');
+        document.getElementById('paxName').value = '';
+        document.getElementById('paxAddr').value = '';
+        document.getElementById('paxPhone').value = '';
+        document.getElementById('paxAddr').className = '';
+    }
+
+    async function addPassengerFromUI() {
+        const name = document.getElementById('paxName').value.trim();
+        let addr = document.getElementById('paxAddr').value.trim();
+        const phone = document.getElementById('paxPhone').value.trim() || '';
+        if (!name) { setStatus('⚠️ Enter a name', 'error'); return; }
+        if (!addr) { setStatus('⚠️ Enter an address', 'error'); return; }
+        try {
+            setStatus(t('geocoding'));
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`);
+            const data = await resp.json();
+            if (!data || !data.length) throw new Error('not found');
+            const { lat, lon } = data[0];
+            addPassengerFromCoords(parseFloat(lat), parseFloat(lon), addr, name, phone);
+        } catch (e) {
+            setStatus(t('geocodingFailed'), 'error');
+            document.getElementById('paxAddr').className = 'error';
+        }
+    }
+
+    function deletePassenger(id) {
+        passengers = passengers.filter(p => p.id !== id);
+        currentOrder = [];
+        cachedRouteData = null;
+        updatePassengerUI();
+        updateMarkersAndMap();
+        clearRoutes();
+        resetItinerary();
+        updatePassengerBadge();
+        setStatus(t('passengerRemoved'));
+    }
+
+    function clearAllPassengers() {
+        if (!passengers.length) return;
+        if (!confirm('Remove all passengers?')) return;
+        passengers = [];
+        currentOrder = [];
+        cachedRouteData = null;
+        updatePassengerUI();
+        updateMarkersAndMap();
+        clearRoutes();
+        resetItinerary();
+        updatePassengerBadge();
+        setStatus(t('passengersCleared'));
+    }
+
+    // ========== UI UPDATES ==========
+    function setStatus(msg, type = '') {
+        const el = document.getElementById('apiStatus');
+        if (el) { el.textContent = msg; el.className = 'status ' + type; }
+    }
+
+    function updateDriverUI() {
+        const badge = document.getElementById('driverBadge');
+        const dot = document.getElementById('driverStatusDot');
+        const nameEl = document.getElementById('driverStatusName');
+        const addrEl = document.getElementById('driverStatusAddr');
+        const phoneEl = document.getElementById('driverStatusPhone');
+        const removeBtn = document.getElementById('removeDriverBtn');
+        
+        if (driver.lat) {
+            badge.textContent = t('driverSet');
+            badge.className = 'badge';
+            dot.className = 'status-dot set';
+            nameEl.textContent = driver.name || 'Driver';
+            addrEl.textContent = driver.address.substring(0, 45);
+            if (driver.phone) {
+                phoneEl.textContent = `📞 ${driver.phone}`;
+                phoneEl.className = 'driver-phone';
+                phoneEl.title = t('clickToEdit');
+            } else {
+                phoneEl.textContent = t('phonePlaceholder');
+                phoneEl.className = 'driver-phone empty-phone';
+                phoneEl.title = t('clickToEdit');
+            }
+            removeBtn.disabled = false;
+        } else {
+            badge.textContent = t('driverNotSetBadge');
+            badge.className = 'badge empty';
+            dot.className = 'status-dot not-set';
+            nameEl.textContent = t('driverNotSet');
+            addrEl.textContent = '';
+            phoneEl.textContent = t('phonePlaceholder');
+            phoneEl.className = 'driver-phone empty-phone';
+            phoneEl.title = t('clickToEdit');
+            removeBtn.disabled = true;
+        }
+    }
+
+    function updatePassengerBadge() {
+        const badge = document.getElementById('passengerBadge');
+        if (badge) {
+            badge.textContent = passengers.length;
+            badge.className = 'badge' + (passengers.length === 0 ? ' empty' : '');
+        }
+        const stopCount = document.getElementById('stopCount');
+        if (stopCount) stopCount.textContent = `${currentOrder.length || 0} ${t('stops')}`;
+    }
+
+    function updatePassengerUI() {
+        const container = document.getElementById('paxListContainer');
+        if (!container) return;
+        if (!passengers.length) {
+            container.innerHTML = `<div style="text-align:center;opacity:0.5;padding:6px;font-size:0.7rem;">${t('noPassengers')}</div>`;
+            return;
+        }
+        container.innerHTML = '';
+        passengers.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'pax-item';
+            div.draggable = true;
+            div.dataset.id = p.id;
+            const orderIdx = currentOrder.indexOf(p.id);
+            const orderBadge = orderIdx !== -1 ? `<span class="pax-order">#${orderIdx+1}</span>` : '';
+            const info = document.createElement('div');
+            info.className = 'pax-info';
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'pax-name';
+            
+            let phoneHtml;
+            if (p.phone) {
+                phoneHtml = `<span class="phone-badge" onclick="event.stopPropagation(); handlePhoneEdit(${p.id}, this)">📞 ${escapeHtml(p.phone)}</span>`;
+            } else {
+                phoneHtml = `<span class="phone-badge empty-phone" onclick="event.stopPropagation(); handlePhoneEdit(${p.id}, this)">${t('phonePlaceholder')}</span>`;
+            }
+            
+            nameSpan.innerHTML = `${orderBadge} 🧑 ${escapeHtml(p.name)} ${phoneHtml}`;
+            nameSpan.title = 'click to edit name';
+            nameSpan.addEventListener('click', (e) => {
+                if (e.target.closest('.phone-badge')) return;
+                startEditName('passenger', p.id, nameSpan);
+            });
+            const addrSpan = document.createElement('span');
+            addrSpan.className = 'pax-addr';
+            addrSpan.textContent = `📍 ${p.address.substring(0, 45)}`;
+            addrSpan.title = 'click to edit address';
+            addrSpan.addEventListener('click', () => startEditAddress('passenger', p.id, addrSpan));
+            info.appendChild(nameSpan);
+            info.appendChild(addrSpan);
+            div.appendChild(info);
+            const del = document.createElement('button');
+            del.className = 'delete-btn';
+            del.textContent = '✖';
+            del.addEventListener('click', () => deletePassenger(p.id));
+            div.appendChild(del);
+            container.appendChild(div);
+        });
+        updatePassengerBadge();
+    }
+
+    // ========== EDIT HELPERS ==========
+    function startEditName(type, id, el) {
+        if (editingElement) cancelEdit();
+        const val = type === 'driver' ? driver.name : passengers.find(p => p.id === id)?.name || '';
+        const input = document.createElement('input');
+        input.className = 'edit-input';
+        input.value = val;
+        el.innerHTML = '';
+        el.appendChild(input);
+        el.classList.add('edit-mode');
+        input.focus();
+        input.select();
+        const finish = () => {
+            const newVal = input.value.trim() || (type === 'driver' ? 'Driver' : 'Passenger');
+            if (type === 'driver') { driver.name = newVal; updateDriverUI(); } else {
+                const p = passengers.find(p => p.id === id);
+                if (p) { p.name = newVal; }
+                updatePassengerUI();
+            }
+            updateMarkersAndMap();
+            if (currentOrder.length) optimizeAndRoute();
+            cancelEdit();
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') cancelEdit(); });
+        editingElement = { element: el, input };
+    }
+
+    function startEditAddress(type, id, el) {
+        if (editingElement) cancelEdit();
+        const val = type === 'driver' ? driver.address : passengers.find(p => p.id === id)?.address || '';
+        const input = document.createElement('input');
+        input.className = 'address-edit-input';
+        input.value = val;
+        el.innerHTML = '';
+        el.appendChild(input);
+        el.classList.add('edit-mode');
+        input.focus();
+        input.select();
+        const finish = () => {
+            const newVal = input.value.trim();
+            if (type === 'driver') { driver.address = newVal; document.getElementById('driverAddr').value = newVal; updateDriverUI(); } else {
+                const p = passengers.find(p => p.id === id);
+                if (p) { p.address = newVal; }
+                updatePassengerUI();
+            }
+            updateMarkersAndMap();
+            if (currentOrder.length) optimizeAndRoute();
+            cancelEdit();
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') cancelEdit(); });
+        editingElement = { element: el, input };
+    }
+
+    function handlePhoneEdit(id, badgeEl) {
+        if (editingElement) cancelEdit();
+        const p = passengers.find(p => p.id === id);
+        if (!p) return;
+        const input = document.createElement('input');
+        input.className = 'phone-edit-input';
+        input.type = 'tel';
+        input.value = p.phone || '';
+        input.placeholder = 'Enter phone number';
+        badgeEl.replaceWith(input);
+        input.focus();
+        input.select();
+        const finish = () => {
+            const val = input.value.trim();
+            p.phone = val || '';
+            updatePassengerUI();
+            updateMarkersAndMap();
+            if (currentOrder.length) optimizeAndRoute();
+            cancelEdit();
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', e => { 
+            if (e.key === 'Enter') input.blur(); 
+            if (e.key === 'Escape') cancelEdit(); 
+        });
+        editingElement = { element: input };
+    }
+
+    function handleDriverPhoneEdit(e) {
+        e.stopPropagation();
+        if (editingElement) cancelEdit();
+        const phoneEl = document.getElementById('driverStatusPhone');
+        if (!phoneEl) return;
+        
+        const input = document.createElement('input');
+        input.className = 'phone-edit-input';
+        input.type = 'tel';
+        input.value = driver.phone || '';
+        input.placeholder = 'Enter phone number';
+        phoneEl.innerHTML = '';
+        phoneEl.appendChild(input);
+        input.focus();
+        input.select();
+        
+        const finish = () => {
+            const val = input.value.trim();
+            driver.phone = val || '';
+            document.getElementById('driverPhone').value = driver.phone;
+            updateDriverUI();
+            updateMarkersAndMap();
+            if (currentOrder.length) optimizeAndRoute();
+            cancelEdit();
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', e => { 
+            if (e.key === 'Enter') input.blur(); 
+            if (e.key === 'Escape') cancelEdit(); 
+        });
+        editingElement = { element: input };
+    }
+
+    function cancelEdit() {
+        if (editingElement) {
+            const el = editingElement.element;
+            if (el) {
+                el.classList.remove('edit-mode');
+                el.innerHTML = '';
+                updateDriverUI();
+                updatePassengerUI();
+                updateMarkersAndMap();
+            }
+            editingElement = null;
+        }
+    }
+
+    // ========== PICK MODE ==========
+    function showPickMode(mode) {
+        pickMode = mode;
+        const indicator = document.getElementById('pickIndicator');
+        const text = document.getElementById('pickModeText');
+        text.textContent = mode === 'driver' ? '📍 Tap map to set DRIVER' : '📍 Tap map to add PASSENGER';
+        document.getElementById('pickDriverBtn')?.classList.toggle('active', mode === 'driver');
+        document.getElementById('pickPassengerBtn')?.classList.toggle('active', mode === 'passenger');
+        indicator.classList.add('show');
+        setStatus(`📍 ${mode === 'driver' ? 'Set driver' : 'Add passenger'} location on map`, 'pick-mode');
+        if (map) {
+            if (tempMarker) map.removeLayer(tempMarker);
+            tempMarker = L.marker(map.getCenter(), {
+                icon: L.divIcon({ html: '📍', className: '', iconSize: [30, 30] })
+            }).addTo(map);
+        }
+        document.getElementById('searchInput').focus();
+    }
+
+    function cancelPickMode() {
+        pickMode = null;
+        document.getElementById('pickIndicator').classList.remove('show');
+        document.getElementById('pickDriverBtn')?.classList.remove('active');
+        document.getElementById('pickPassengerBtn')?.classList.remove('active');
+        if (tempMarker && map) { map.removeLayer(tempMarker); tempMarker = null; }
+        setStatus(t('pickModeCancelled'), 'success');
+        setTimeout(() => setStatus(t('apiStatus')), 1800);
+    }
+
+    // ========== MARKERS & ROUTE ==========
+    function updateMarkersAndMap() {
+        if (!map) return;
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        if (driver.lat) {
+            const icon = L.divIcon({
+                html: '🚗',
+                className: 'custom-marker custom-marker-driver',
+                iconSize: [34, 34],
+                popupAnchor: [0, -15]
+            });
+            const m = L.marker([driver.lat, driver.lng], { icon }).addTo(map);
+            m.bindPopup(`<b>🚘 ${escapeHtml(driver.name || 'Driver')}</b><br>${escapeHtml(driver.address)}${driver.phone ? '<br>📞 '+escapeHtml(driver.phone) : ''}`);
+            markers.push(m);
+        }
+        passengers.forEach(p => {
+            const ordered = currentOrder.includes(p.id);
+            const num = currentOrder.indexOf(p.id);
+            const label = ordered ? `${num+1}` : '🧑';
+            const cls = ordered ? 'custom-marker-pax-ordered' : 'custom-marker-pax';
+            const icon = L.divIcon({
+                html: label,
+                className: `custom-marker ${cls}`,
+                iconSize: [28, 28],
+                popupAnchor: [0, -12]
+            });
+            const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+            m.bindPopup(`<b>🧑 ${escapeHtml(p.name)}</b>${ordered ? `<br>Stop #${num+1}` : ''}${p.phone ? '<br>📞 '+escapeHtml(p.phone) : ''}<br>📌 ${escapeHtml(p.address)}`);
+            markers.push(m);
+        });
+        if (driver.lat && passengers.length) {
+            const bounds = [[driver.lat, driver.lng], ...passengers.map(p => [p.lat, p.lng])];
+            map.fitBounds(bounds, { padding: [50, 50] });
+        } else if (driver.lat) {
+            map.setView([driver.lat, driver.lng], 13);
+        }
+    }
+
+    function clearRoutes() {
+        routeLayers.forEach(l => map && map.removeLayer(l));
+        routeLayers = [];
+    }
+
+    function resetItinerary() {
+        document.getElementById('panelSteps').innerHTML = `
+            <div class="itinerary-empty">
+                <span class="empty-icon">🗺️</span>
+                <span>${t('balloonEmpty')}</span>
+            </div>
+        `;
+        document.getElementById('panelTotalDistance').innerHTML = t('totalDistance');
+        document.getElementById('stopCount').textContent = `0 ${t('stops')}`;
+    }
+
+    // ========== OPTIMIZATION ==========
+    async function computeOptimalOrder() {
+        if (!driver.lat) throw new Error('Driver not set');
+        if (!passengers.length) throw new Error('No passengers');
+        const nodes = [{ ...driver, type: 'driver', id: 'driver' }, ...passengers.map(p => ({ ...p, type: 'passenger' }))];
+        const n = nodes.length;
+        const dist = Array.from({ length: n }, () => Array(n).fill(0));
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const d = haversine(nodes[i].lat, nodes[i].lng, nodes[j].lat, nodes[j].lng);
+                dist[i][j] = d;
+                dist[j][i] = d;
+            }
+        }
+        let visited = Array(n).fill(false);
+        visited[0] = true;
+        let order = [0];
+        let current = 0;
+        let total = 0;
+        let segs = [];
+        while (order.length < n) {
+            let best = -1;
+            let bestD = Infinity;
+            for (let i = 0; i < n; i++) {
+                if (!visited[i] && dist[current][i] < bestD) {
+                    bestD = dist[current][i];
+                    best = i;
+                }
+            }
+            total += bestD;
+            segs.push(bestD);
+            visited[best] = true;
+            order.push(best);
+            current = best;
+        }
+        return { orderedNodes: order.map(i => nodes[i]), totalDistance: total, segmentDistances: segs };
+    }
+
+    async function optimizeAndRoute() {
+        if (!driver.lat) { setStatus('⚠️ Set driver first', 'error'); return; }
+        if (!passengers.length) { setStatus('⚠️ Add passengers', 'error'); return; }
+        setStatus(t('optimizing'));
+        try {
+            const { orderedNodes, totalDistance, segmentDistances } = await computeOptimalOrder();
+            currentOrder = orderedNodes.filter(n => n.type === 'passenger').map(n => n.id);
+            
+            // Cache the route data for language changes
+            cachedRouteData = { orderedNodes, totalDistance, segmentDistances };
+            
+            drawRoute(orderedNodes, segmentDistances);
+            updateItineraryPanel(orderedNodes, totalDistance, segmentDistances);
+            updatePassengerUI();
+            updateMarkersAndMap();
+            updatePassengerBadge();
+            setStatus(t('routeOptimized'), 'success');
+        } catch (e) {
+            setStatus(t('optimizationFailed'), 'error');
+        }
+    }
+
+    function drawRoute(nodes, segs) {
+        clearRoutes();
+        if (!map) return;
+        const colors = ['#4dd0e1', '#4db6ac', '#66bb6a', '#aed581', '#ffd54f'];
+        for (let i = 0; i < nodes.length - 1; i++) {
+            const from = nodes[i];
+            const to = nodes[i + 1];
+            const pts = [[from.lat, from.lng], [to.lat, to.lng]];
+            const c = colors[i % colors.length];
+            const line = L.polyline(pts, { color: c, weight: 5, opacity: 0.85, smoothFactor: 1 }).addTo(map);
+            routeLayers.push(line);
+            const glow = L.polyline(pts, { color: c, weight: 12, opacity: 0.12, smoothFactor: 1 }).addTo(map);
+            routeLayers.push(glow);
+        }
+    }
+
+    function updateItineraryPanel(nodes, total, segs) {
+        const stepsDiv = document.getElementById('panelSteps');
+        if (!stepsDiv) return;
+        let html = '';
+        
+        let driverPhoneHtml;
+        if (nodes[0].phone) {
+            driverPhoneHtml = `<span class="step-phone" onclick="window.startEditInPanel(this, 'phone')">📞 ${escapeHtml(nodes[0].phone)}</span>`;
+        } else {
+            driverPhoneHtml = `<span class="step-phone empty-phone" onclick="window.startEditInPanel(this, 'phone')">${t('phonePlaceholder')}</span>`;
+        }
+        
+        html += `<div class="itinerary-item" data-step="0" data-type="driver">
+            <div class="step-row">
+                <span class="step-number driver-step">🚗</span>
+                <span class="step-name" onclick="window.startEditInPanel(this, 'name')">${t('start')}: ${escapeHtml(nodes[0].name || 'Driver')}</span>
+                ${driverPhoneHtml}
+            </div>
+            <div class="step-address" onclick="window.startEditInPanel(this, 'address')">${escapeHtml(nodes[0].address)}</div>
+        </div>`;
+        
+        for (let i = 1; i < nodes.length; i++) {
+            const p = nodes[i];
+            let phoneHtml;
+            if (p.phone) {
+                phoneHtml = `<span class="step-phone" onclick="window.startEditInPanel(this, 'phone')">📞 ${escapeHtml(p.phone)}</span>`;
+            } else {
+                phoneHtml = `<span class="step-phone empty-phone" onclick="window.startEditInPanel(this, 'phone')">${t('phonePlaceholder')}</span>`;
+            }
+            const dist = segs[i - 1] || 0;
+            html += `<div class="itinerary-item" data-step="${i}" data-type="passenger" data-id="${p.id}">
+                <div class="step-row">
+                    <span class="step-number">${i}</span>
+                    <span class="step-name" onclick="window.startEditInPanel(this, 'name')">${escapeHtml(p.name)}</span>
+                    ${phoneHtml}
+                    <span class="step-dist">${dist.toFixed(1)} km</span>
+                </div>
+                <div class="step-address" onclick="window.startEditInPanel(this, 'address')">${escapeHtml(p.address)}</div>
+            </div>`;
+        }
+        stepsDiv.innerHTML = html;
+        document.getElementById('panelTotalDistance').innerHTML = `${t('total')} ${total.toFixed(1)} km`;
+        document.getElementById('stopCount').textContent = `${nodes.length - 1} ${t('stops')}`;
+    }
+
+    // Panel edit functions
+    window.startEditInPanel = function(el, field) {
+        const item = el.closest('.itinerary-item');
+        if (!item) return;
+        const idx = parseInt(item.dataset.step);
+        const nodes = getOrderedNodesForPanel();
+        if (!nodes || idx >= nodes.length) return;
+        const node = nodes[idx];
+        if (node.type === 'driver') {
+            if (field === 'name') { const nameEl = item.querySelector('.step-name'); startEditName('driver', null, nameEl); }
+            else if (field === 'address') { const addrEl = item.querySelector('.step-address'); startEditAddress('driver', null, addrEl); }
+            else if (field === 'phone') {
+                const phoneEl = item.querySelector('.step-phone');
+                if (phoneEl) {
+                    const input = document.createElement('input');
+                    input.className = 'phone-edit-input';
+                    input.type = 'tel';
+                    input.value = driver.phone || '';
+                    input.placeholder = 'Enter phone number';
+                    phoneEl.replaceWith(input);
+                    input.focus();
+                    input.select();
+                    const finish = () => {
+                        driver.phone = input.value.trim() || '';
+                        document.getElementById('driverPhone').value = driver.phone;
+                        updateDriverUI();
+                        updateMarkersAndMap();
+                        if (currentOrder.length) optimizeAndRoute();
+                        cancelEdit();
+                    };
+                    input.addEventListener('blur', finish);
+                    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') cancelEdit(); });
+                    editingElement = { element: input };
+                }
+            }
+        } else {
+            const p = passengers.find(p => p.id === node.id);
+            if (!p) return;
+            if (field === 'name') { const nameEl = item.querySelector('.step-name'); startEditName('passenger', p.id, nameEl); }
+            else if (field === 'address') { const addrEl = item.querySelector('.step-address'); startEditAddress('passenger', p.id, addrEl); }
+            else if (field === 'phone') {
+                const phoneEl = item.querySelector('.step-phone');
+                if (phoneEl) {
+                    const input = document.createElement('input');
+                    input.className = 'phone-edit-input';
+                    input.type = 'tel';
+                    input.value = p.phone || '';
+                    input.placeholder = 'Enter phone number';
+                    phoneEl.replaceWith(input);
+                    input.focus();
+                    input.select();
+                    const finish = () => {
+                        p.phone = input.value.trim() || '';
+                        updatePassengerUI();
+                        updateMarkersAndMap();
+                        if (currentOrder.length) optimizeAndRoute();
+                        cancelEdit();
+                    };
+                    input.addEventListener('blur', finish);
+                    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') cancelEdit(); });
+                    editingElement = { element: input };
+                }
+            }
+        }
+    };
+
+    function getOrderedNodesForPanel() {
+        if (!driver.lat || !currentOrder.length) return null;
+        const nodes = [{ ...driver, type: 'driver', id: 'driver' }];
+        for (let id of currentOrder) {
+            const p = passengers.find(p => p.id === id);
+            if (p) nodes.push({ ...p, type: 'passenger' });
+        }
+        return nodes;
+    }
+
+    // ========== DEMO ==========
+    async function demoPassengers() {
+        const baseLat = userLocation?.lat || 40.7128;
+        const baseLng = userLocation?.lng || -74.0060;
+        const list = [
+            { name: 'Alice', addr: `${baseLat + 0.01}, ${baseLng + 0.01}`, phone: '+1 555-123-4567' },
+            { name: 'Bob', addr: `${baseLat - 0.008}, ${baseLng + 0.015}`, phone: '+1 555-234-5678' },
+            { name: 'Carol', addr: `${baseLat + 0.015}, ${baseLng - 0.01}`, phone: '+1 555-345-6789' },
+            { name: 'Dave', addr: `${baseLat - 0.012}, ${baseLng - 0.008}`, phone: '+1 555-456-7890' }
+        ];
+        let added = 0;
+        setStatus(t('addingDemo'));
+        for (let d of list) {
+            try {
+                const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(d.addr)}&limit=1`);
+                const data = await resp.json();
+                if (data && data.length) {
+                    const { lat, lon } = data[0];
+                    addPassengerFromCoords(parseFloat(lat), parseFloat(lon), d.addr, d.name, d.phone);
+                    added++;
+                }
+            } catch (e) { console.warn('demo skip', d.addr); }
+        }
+        if (added) setStatus(t('demoAdded', { count: added }), 'success');
+        else setStatus('⚠️ Demo failed, check addresses', 'error');
+    }
+
+    // ========== EXPORT ==========
+    function exportRoute() {
+        if (!currentOrder.length) { setStatus('⚠️ No route to export!', 'error'); return; }
+        const nodes = getOrderedNodesForPanel();
+        if (!nodes) return;
+        let summary = '=== ROUTE GLIDE - EXPORT ===\n';
+        summary += `Date: ${new Date().toLocaleString()}\n`;
+        summary += `Total Distance: ${document.getElementById('panelTotalDistance').textContent}\n\n`;
+        summary += 'STOPS:\n';
+        nodes.forEach((node, i) => {
+            const label = i === 0 ? '🚗 START' : `📍 STOP ${i}`;
+            summary += `${label}: ${node.name || 'Unnamed'}\n`;
+            summary += `  Address: ${node.address}\n`;
+            if (node.phone) summary += `  Phone: ${node.phone}\n`;
+            summary += '\n';
+        });
+        const blob = new Blob([summary], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `route-export-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus('✅ Route exported!', 'success');
+    }
+
+    function printRoute() {
+        if (!currentOrder.length) { setStatus('⚠️ No route to print!', 'error'); return; }
+        window.print();
+    }
+
+    function clearRoute() {
+        if (!currentOrder.length && !passengers.length) return;
+        if (!confirm('Clear the current route and all passengers?')) return;
+        passengers = [];
+        currentOrder = [];
+        cachedRouteData = null;
+        clearRoutes();
+        resetItinerary();
+        updatePassengerUI();
+        updateMarkersAndMap();
+        updatePassengerBadge();
+        setStatus('🗑️ Route cleared', '');
+    }
+
+    function fitMap() {
+        if (driver.lat && passengers.length) {
+            const bounds = [[driver.lat, driver.lng], ...passengers.map(p => [p.lat, p.lng])];
+            map.fitBounds(bounds, { padding: [50, 50] });
+        } else if (driver.lat) {
+            map.setView([driver.lat, driver.lng], 14);
+        } else {
+            setStatus('⚠️ No markers to fit', 'error');
+        }
+    }
+
+    // ========== DOWNLOADS ==========
+    async function downloadPNG() {
+        try {
+            setStatus(t('generatingPNG'));
+            if (map) { map.invalidateSize(); await sleep(300); }
+            
+            // Capture the entire map container including the route panel
+            const container = document.getElementById('mapContainer');
+            const canvas = await html2canvas(container, { 
+                scale: 2.5, 
+                useCORS: true, 
+                backgroundColor: '#14262b', 
+                logging: false,
+                width: container.scrollWidth,
+                height: container.scrollHeight
+            });
+            
+            // Also capture the right panel with route data
+            const rightPanel = document.getElementById('rightPanel');
+            const panelCanvas = await html2canvas(rightPanel, {
+                scale: 2.5,
+                useCORS: true,
+                backgroundColor: '#0b1a1f',
+                logging: false
+            });
+            
+            // Combine both canvases
+            const combinedCanvas = document.createElement('canvas');
+            const totalWidth = canvas.width + panelCanvas.width;
+            const totalHeight = Math.max(canvas.height, panelCanvas.height);
+            combinedCanvas.width = totalWidth;
+            combinedCanvas.height = totalHeight;
+            const ctx = combinedCanvas.getContext('2d');
+            ctx.fillStyle = '#0b1a1f';
+            ctx.fillRect(0, 0, totalWidth, totalHeight);
+            ctx.drawImage(canvas, 0, 0);
+            ctx.drawImage(panelCanvas, canvas.width, 0);
+            
+            const link = document.createElement('a');
+            link.download = 'route-glide.png';
+            link.href = combinedCanvas.toDataURL('image/png');
+            link.click();
+            setStatus(t('pngDownloaded'), 'success');
+            setTimeout(() => setStatus(t('apiStatus')), 2500);
+        } catch (e) { 
+            console.error(e);
+            setStatus('❌ Download failed', 'error'); 
+        }
+    }
+
+    async function downloadPDF() {
+        try {
+            setStatus(t('generatingPDF'));
+            if (map) { map.invalidateSize(); await sleep(300); }
+            
+            // Capture the entire map container
+            const container = document.getElementById('mapContainer');
+            const canvas = await html2canvas(container, { 
+                scale: 2.5, 
+                useCORS: true, 
+                backgroundColor: '#14262b', 
+                logging: false,
+                width: container.scrollWidth,
+                height: container.scrollHeight
+            });
+            
+            // Also capture the right panel with route data
+            const rightPanel = document.getElementById('rightPanel');
+            const panelCanvas = await html2canvas(rightPanel, {
+                scale: 2.5,
+                useCORS: true,
+                backgroundColor: '#0b1a1f',
+                logging: false
+            });
+            
+            // Combine both canvases
+            const combinedCanvas = document.createElement('canvas');
+            const totalWidth = canvas.width + panelCanvas.width;
+            const totalHeight = Math.max(canvas.height, panelCanvas.height);
+            combinedCanvas.width = totalWidth;
+            combinedCanvas.height = totalHeight;
+            const ctx = combinedCanvas.getContext('2d');
+            ctx.fillStyle = '#0b1a1f';
+            ctx.fillRect(0, 0, totalWidth, totalHeight);
+            ctx.drawImage(canvas, 0, 0);
+            ctx.drawImage(panelCanvas, canvas.width, 0);
+            
+            const imgData = combinedCanvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const imgW = 297;
+            const imgH = (combinedCanvas.height * imgW) / combinedCanvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH);
+            pdf.save('route-glide.pdf');
+            setStatus(t('pdfDownloaded'), 'success');
+            setTimeout(() => setStatus(t('apiStatus')), 2500);
+        } catch (e) { 
+            console.error(e);
+            setStatus('❌ PDF failed', 'error'); 
+        }
+    }
+
+    // ========== DRAG & DROP ==========
+    function initDragDrop() {
+        let dragged = null;
+        document.addEventListener('dragstart', e => {
+            const item = e.target.closest('.pax-item');
+            if (!item) return;
+            dragged = item;
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', item.dataset.id);
+        });
+        document.addEventListener('dragend', e => {
+            document.querySelectorAll('.pax-item').forEach(el => el.classList.remove('dragging', 'drag-over'));
+        });
+        document.addEventListener('dragover', e => {
+            e.preventDefault();
+            const target = e.target.closest('.pax-item');
+            if (target && target !== dragged) target.classList.add('drag-over');
+        });
+        document.addEventListener('dragleave', e => {
+            const target = e.target.closest('.pax-item');
+            if (target) target.classList.remove('drag-over');
+        });
+        document.addEventListener('drop', e => {
+            e.preventDefault();
+            const target = e.target.closest('.pax-item');
+            if (!target || !dragged || target === dragged) return;
+            target.classList.remove('drag-over');
+            const fromId = parseInt(dragged.dataset.id);
+            const toId = parseInt(target.dataset.id);
+            const fi = passengers.findIndex(p => p.id === fromId);
+            const ti = passengers.findIndex(p => p.id === toId);
+            if (fi === -1 || ti === -1) return;
+            const [rem] = passengers.splice(fi, 1);
+            passengers.splice(ti, 0, rem);
+            currentOrder = [];
+            cachedRouteData = null;
+            updatePassengerUI();
+            updateMarkersAndMap();
+            clearRoutes();
+            resetItinerary();
+            setStatus(t('orderUpdated'), 'success');
+        });
+    }
+
+    // ========== LANGUAGE ==========
+    function updateLang(lang) {
+        currentLang = lang;
+        document.querySelectorAll('.lang-group button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+        
+        // Update all text elements
+        document.getElementById('apiStatus').textContent = t('apiStatus');
+        document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+        document.querySelector('#clearRouteBtn').textContent = t('clearRoute');
+        document.querySelector('#exportRouteBtn').textContent = t('exportRoute');
+        document.querySelector('#printRouteBtn').textContent = t('printRoute');
+        document.querySelector('#zoomFitBtn').textContent = t('fitMap');
+        document.querySelector('#downloadMapBtn').textContent = t('downloadMapBtn');
+        document.querySelector('#printMapBtn').textContent = t('printMapBtn');
+        document.querySelector('.panel-header h3 span').textContent = t('optimalRoute');
+        
+        updateDriverUI();
+        updatePassengerUI();
+        
+        // Restore cached route data if it exists
+        if (cachedRouteData) {
+            const { orderedNodes, totalDistance, segmentDistances } = cachedRouteData;
+            updateItineraryPanel(orderedNodes, totalDistance, segmentDistances);
+            updatePassengerBadge();
+        } else {
+            resetItinerary();
+        }
+    }
+
+    // ========== EVENTS ==========
+    function bindEvents() {
+        document.getElementById('setDriverBtn').addEventListener('click', setDriver);
+        document.getElementById('pickDriverBtn').addEventListener('click', () => pickMode === 'driver' ? cancelPickMode() : showPickMode('driver'));
+        document.getElementById('removeDriverBtn').addEventListener('click', removeDriver);
+        document.getElementById('addPassengerBtn').addEventListener('click', addPassengerFromUI);
+        document.getElementById('pickPassengerBtn').addEventListener('click', () => pickMode === 'passenger' ? cancelPickMode() : showPickMode('passenger'));
+        document.getElementById('demoBtn').addEventListener('click', demoPassengers);
+        document.getElementById('clearBtn').addEventListener('click', clearAllPassengers);
+        document.getElementById('optimizeBtn').addEventListener('click', optimizeAndRoute);
+        document.getElementById('downloadMapBtn').addEventListener('click', downloadPNG);
+        document.getElementById('printMapBtn').addEventListener('click', downloadPDF);
+        document.getElementById('cancelPickBtn').addEventListener('click', cancelPickMode);
+        document.getElementById('zoomFitBtn').addEventListener('click', fitMap);
+        document.getElementById('clearRouteBtn').addEventListener('click', clearRoute);
+        document.getElementById('exportRouteBtn').addEventListener('click', exportRoute);
+        document.getElementById('printRouteBtn').addEventListener('click', printRoute);
+
+        document.getElementById('driverAddr').addEventListener('keypress', e => { if (e.key === 'Enter') setDriver(); });
+        document.getElementById('driverPhone').addEventListener('keypress', e => { if (e.key === 'Enter') setDriver(); });
+        document.getElementById('paxAddr').addEventListener('keypress', e => { if (e.key === 'Enter') addPassengerFromUI(); });
+        document.getElementById('paxName').addEventListener('keypress', e => { if (e.key === 'Enter') addPassengerFromUI(); });
+        document.getElementById('paxPhone').addEventListener('keypress', e => { if (e.key === 'Enter') addPassengerFromUI(); });
+
+        document.querySelectorAll('.lang-group button').forEach(b => b.addEventListener('click', () => updateLang(b.dataset.lang)));
+
+        document.getElementById('driverStatusName').addEventListener('click', function(e) { 
+            e.stopPropagation();
+            if (driver.lat) startEditName('driver', null, this); 
+        });
+        document.getElementById('driverStatusAddr').addEventListener('click', function(e) { 
+            e.stopPropagation();
+            if (driver.lat && driver.address) startEditAddress('driver', null, this); 
+        });
+        
+        const driverPhoneEl = document.getElementById('driverStatusPhone');
+        if (driverPhoneEl) {
+            driverPhoneEl.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (driver.lat) {
+                    handleDriverPhoneEdit(e);
+                } else {
+                    setStatus('⚠️ Set driver first', 'error');
+                }
+            });
+        }
+
+        document.addEventListener('click', e => { 
+            if (editingElement && !editingElement.element.contains(e.target)) cancelEdit(); 
+        });
+    }
+
+    // ========== INIT ==========
+    function init() {
+        initMap();
+        bindEvents();
+        initDragDrop();
+        updateDriverUI();
+        updatePassengerBadge();
+        updateLang('en');
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+
+    window.addEventListener('resize', () => { if (map) setTimeout(() => map.invalidateSize(), 150); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && map) setTimeout(() => map.invalidateSize(), 200); });
+</script>
+</body>
+</html>
