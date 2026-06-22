@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>RoutMap · Pro Optimizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a1419;
+            --bg-secondary: #0f1e24;
+            --bg-card: #162b33;
+            --bg-input: #1e3f49;
+            --bg-hover: #1f3d47;
+            --accent: #4fbf8b;
+            --accent-dark: #3aa87a;
+            --accent-glow: rgba(79, 191, 139, 0.25);
+            --accent-glow-strong: rgba(79, 191, 139, 0.4);
+            --gold: #f5b87a;
+            --gold-glow: rgba(245, 184, 122, 0.3);
+            --text-primary: #ffffff;
+            --text-secondary: #d0e0e8;
+            --text-muted: #8aaabc;
+            --danger: #f67b7b;
+            --danger-glow: rgba(246, 123, 123, 0.2);
+            --whatsapp: #25D366;
+            --whatsapp-dark: #128C7E;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-lg: 24px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-hover: 0 12px 48px rgba(0, 0, 0, 0.7);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-primary);
+        }
+        ::-webkit-scrollbar { width:4px; height:4px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius:10px; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius:10px; }
+        .app-wrapper {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+        .sidebar {
+            width: 380px;
+            min-width: 380px;
+            background: rgba(10,20,25,0.97);
+            backdrop-filter: blur(20px);
+            padding: 1rem 1rem 1.2rem;
+            overflow-y: auto;
+            border-right: 1px solid rgba(79,191,139,0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar.readonly-sidebar {
+            opacity: 0.6;
+            pointer-events: none;
+            user-select: none;
+        }
+        .sidebar.readonly-sidebar .btn-accent,
+        .sidebar.readonly-sidebar .btn-outline-accent,
+        .sidebar.readonly-sidebar .btn-ghost,
+        .sidebar.readonly-sidebar .btn-icon,
+        .sidebar.readonly-sidebar input,
+        .sidebar.readonly-sidebar .editable-field {
+            pointer-events: none !important;
+            cursor: not-allowed !important;
+        }
+        .sidebar.readonly-sidebar .pax-item {
+            cursor: default !important;
+        }
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid rgba(79,191,139,0.15);
+            flex-shrink: 0;
+        }
+        .brand-left { display:flex; align-items:center; gap:0.5rem; }
+        .brand-left .logo-icon {
+            background: var(--accent);
+            color: var(--bg-primary);
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .brand-left .brand-name {
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent), #6dd5a8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .lang-group { display:flex; gap:3px; align-items:center; }
+        .lang-group .btn-lang {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: var(--text-muted);
+            padding: 0 10px;
+            border-radius: 30px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            cursor: pointer;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+        .lang-group .btn-lang:hover { background: var(--accent-glow); border-color:var(--accent); color:var(--text-primary); }
+        .lang-group .btn-lang.active { background: var(--accent); border-color:var(--accent); color:var(--bg-primary); }
+        .card-glass {
+            background: rgba(22,43,51,0.7);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius);
+            padding: 0.6rem 0.8rem;
+            border: 1px solid rgba(79,191,139,0.06);
+            box-shadow: var(--shadow);
+        }
+        .card-glass:hover { border-color: rgba(79,191,139,0.12); box-shadow: var(--shadow-hover); }
+        .card-title {
+            font-weight: 600;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-left: 10px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            border-left: 3px solid var(--accent);
+        }
+        .card-title .badge-custom {
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-size: 0.5rem;
+            font-weight: 700;
+            padding: 2px 12px;
+            border-radius: 40px;
+        }
+        .badge-custom.empty { background: rgba(184,122,58,0.6); color: var(--text-primary); }
+        .input-group-row { display:flex; gap:6px; width:100%; }
+        .form-control-sm-custom {
+            background: rgba(30,63,73,0.6);
+            border: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-primary);
+            border-radius: 40px;
+            padding: 0.35rem 0.8rem;
+            font-size: 0.7rem;
+            transition: var(--transition);
+            width: 100%;
+        }
+        .form-control-sm-custom::placeholder { color: var(--text-muted); }
+        .form-control-sm-custom:focus {
+            background: rgba(42,85,99,0.8);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+            color: var(--text-primary);
+        }
+        .btn-accent {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border: none;
+            color: var(--bg-primary);
+            font-weight: 700;
+            border-radius: 40px;
+            padding: 0.3rem 0.9rem;
+            font-size: 0.65rem;
+            box-shadow: 0 4px 16px rgba(79,191,139,0.25);
+            transition: var(--transition);
+        }
+        .btn-accent:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 6px 24px rgba(79,191,139,0.35); }
+        .btn-outline-accent {
+            background: transparent;
+            border: 1px solid rgba(79,191,139,0.3);
+            color: var(--accent);
+            border-radius: 40px;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.6rem;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+        .btn-outline-accent:hover { background: var(--accent-glow); border-color:var(--accent); }
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.06);
+            color: var(--text-muted);
+            border-radius: 40px;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.55rem;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); border-color: rgba(255,255,255,0.1); }
+        .btn-ghost.danger:hover { background: var(--danger-glow); color: var(--danger); border-color: var(--danger); }
+        .btn-group-row { display:flex; gap:4px; width:100%; }
+        .btn-group-row .btn-accent, .btn-group-row .btn-outline-accent, .btn-group-row .btn-ghost { flex:1; text-align:center; display:flex; align-items:center; justify-content:center; gap:3px; }
+        .driver-status {
+            background: rgba(14,35,43,0.6);
+            border-radius: var(--radius-sm);
+            padding: 5px 10px;
+            border-left: 3px solid var(--accent);
+            width: 100%;
+        }
+        .driver-status .driver-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .driver-status .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+        .driver-status .status-dot.set { background: var(--accent); box-shadow: 0 0 12px var(--accent-glow-strong); }
+        .driver-status .status-dot.not-set { background: var(--gold); opacity:0.5; }
+        .driver-status .driver-name { font-weight:700; color:#fff; font-size:0.75rem; cursor:pointer; padding:2px 6px; border-radius:4px; }
+        .driver-status .driver-name:hover { background: rgba(255,255,255,0.08); }
+        .driver-status .driver-phone {
+            font-weight:500; color:#fff; opacity:0.6; font-size:0.6rem;
+            background: rgba(255,255,255,0.06); padding:0 10px; border-radius:30px; cursor:pointer;
+        }
+        .driver-status .driver-phone:hover { opacity:1; background: rgba(79,191,139,0.15); }
+        .driver-status .driver-phone.empty-phone { opacity:0.3; font-style:italic; }
+        .driver-status .driver-address {
+            font-weight:500; color:#fff; opacity:0.6; font-size:0.55rem;
+            padding:2px 6px 2px 17px; cursor:pointer; border-radius:4px;
+        }
+        .driver-status .driver-address:hover { opacity:1; background: rgba(255,255,255,0.08); }
+        .driver-status .driver-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        .driver-status .driver-actions .btn-icon {
+            background:transparent; border:none; color:var(--text-muted);
+            padding:2px 5px; border-radius:30px; font-size:0.6rem; cursor:pointer;
+            transition: var(--transition);
+        }
+        .driver-status .driver-actions .btn-icon:hover { background:rgba(255,255,255,0.05); color:var(--text-primary); }
+        .driver-status .driver-actions .btn-icon.edit-location { color:var(--gold); }
+        .driver-status .driver-actions .btn-icon.edit-location:hover { background:var(--gold-glow); color:var(--gold); transform:scale(1.1); }
+        .driver-status .driver-actions .btn-icon.edit-location.active { background:var(--gold); color:var(--bg-primary); animation:pulse-gold 1.2s infinite; }
+        .driver-status .driver-actions .btn-icon.delete { color:var(--danger); }
+        .driver-status .driver-actions .btn-icon.delete:hover { background:var(--danger-glow); color:var(--danger); transform:scale(1.1); }
+        .pax-list { max-height:100px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; margin-top:3px; }
+        .pax-item {
+            background: rgba(14,35,43,0.5);
+            border-radius: var(--radius-sm);
+            padding: 4px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid var(--gold);
+            font-size: 0.65rem;
+            cursor: grab;
+            transition: var(--transition);
+        }
+        .pax-item:hover { background: rgba(20,50,60,0.7); transform:translateX(4px); }
+        .pax-item .pax-info { display:flex; flex-direction:column; flex:1; min-width:0; }
+        .pax-item .pax-name { font-weight:700; color:#fff; font-size:0.7rem; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+        .pax-item .pax-name .order-badge { background:var(--accent); color:var(--bg-primary); font-size:0.45rem; font-weight:700; padding:0 6px; border-radius:30px; }
+        .pax-item .pax-phone {
+            font-weight:500; color:#fff; opacity:0.5; font-size:0.45rem;
+            background: rgba(255,255,255,0.05); padding:0 6px; border-radius:30px; cursor:pointer;
+        }
+        .pax-item .pax-phone:hover { opacity:1; background: rgba(79,191,139,0.15); }
+        .pax-item .pax-phone.empty-phone { opacity:0.3; font-style:italic; }
+        .pax-item .pax-address {
+            font-weight:500; color:#fff; opacity:0.6; font-size:0.5rem;
+            cursor:pointer; padding:2px 4px; border-radius:4px;
+        }
+        .pax-item .pax-address:hover { opacity:1; background: rgba(255,255,255,0.08); }
+        .pax-item .pax-actions { display:flex; gap:3px; align-items:center; flex-shrink:0; }
+        .pax-item .btn-icon {
+            background:transparent; border:none; color:var(--text-muted);
+            padding:2px 5px; border-radius:30px; font-size:0.6rem; cursor:pointer;
+        }
+        .pax-item .btn-icon:hover { background:rgba(255,255,255,0.05); color:var(--text-primary); }
+        .pax-item .btn-icon.edit-location { color:var(--gold); }
+        .pax-item .btn-icon.edit-location:hover { background:var(--gold-glow); color:var(--gold); transform:scale(1.1); }
+        .pax-item .btn-icon.edit-location.active { background:var(--gold); color:var(--bg-primary); animation:pulse-gold 1.2s infinite; }
+        .pax-item .btn-icon.delete { color:var(--danger); }
+        .pax-item .btn-icon.delete:hover { background:var(--danger-glow); color:var(--danger); transform:scale(1.1); }
+        .status-bar {
+            font-size:0.6rem; background:rgba(11,31,38,0.6); backdrop-filter:blur(4px);
+            padding:0.35rem 0.7rem; border-radius:40px; text-align:center; min-height:30px;
+            border:1px solid rgba(79,191,139,0.06); display:flex; align-items:center; justify-content:center; gap:6px;
+            color: var(--text-primary);
+        }
+        .status-bar.error { background:rgba(61,26,26,0.6); color:var(--danger); border-color:var(--danger); }
+        .status-bar.success { background:rgba(26,61,42,0.5); color:#7ad0a8; border-color:var(--accent); }
+        .status-bar.pick-mode { background:rgba(61,58,26,0.5); color:#f5d742; border-color:#f5d742; }
+        .status-bar.readonly { background:rgba(61,61,61,0.5); color:#aaa; border-color:rgba(255,255,255,0.1); }
+        .stats-badge {
+            display:flex; gap:10px; padding:3px 8px; background:rgba(79,191,139,0.06);
+            border-radius:30px; flex-wrap:wrap; border:1px solid rgba(79,191,139,0.06);
+        }
+        .stats-badge .stat-item { display:flex; align-items:center; gap:3px; font-size:0.55rem; color:var(--text-muted); }
+        .stats-badge .stat-item .stat-value { font-weight:700; color:var(--text-primary); }
+        .map-container { flex:1; position:relative; background:var(--bg-primary); overflow:hidden; }
+        #map { height:100%; width:100%; background:var(--bg-primary); }
+        .search-container {
+            position:absolute; top:12px; left:50%; transform:translateX(-50%);
+            z-index:1000; width:440px; max-width:calc(100% - 24px);
+        }
+        .search-wrapper {
+            position:relative; width:100%; background:rgba(10,20,25,0.85); backdrop-filter:blur(20px);
+            border-radius:60px; border:1px solid rgba(79,191,139,0.1); box-shadow:0 8px 32px rgba(0,0,0,0.5);
+        }
+        .search-wrapper input {
+            width:100%; padding:10px 18px; padding-right:44px; border:none; background:transparent;
+            color:var(--text-primary); font-size:0.8rem; outline:none;
+        }
+        .search-wrapper input::placeholder { color:var(--text-muted); }
+        .search-wrapper .search-icon { position:absolute; right:16px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.8rem; pointer-events:none; }
+        .search-results {
+            position:absolute; top:calc(100% + 8px); left:0; right:0;
+            background:rgba(10,20,25,0.96); backdrop-filter:blur(24px);
+            border-radius:var(--radius); border:1px solid rgba(79,191,139,0.1);
+            box-shadow:0 12px 48px rgba(0,0,0,0.6); max-height:280px; overflow-y:auto; display:none; z-index:1001;
+        }
+        .search-results.show { display:block; }
+        .search-result-item { padding:8px 14px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .search-result-item:hover { background:var(--accent-glow); }
+        .search-result-item .result-name { color:var(--text-primary); font-size:0.75rem; font-weight:500; }
+        .search-result-item .result-address { color:var(--text-muted); font-size:0.6rem; margin-top:2px; }
+        .pick-indicator {
+            position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
+            background:rgba(245,170,60,0.95); backdrop-filter:blur(12px);
+            color:var(--bg-primary); padding:8px 22px; border-radius:60px; font-weight:700; font-size:0.8rem;
+            z-index:1000; display:none; box-shadow:0 8px 40px rgba(245,170,60,0.3);
+            border:1px solid rgba(255,255,255,0.15); animation:pulse-gold 1.5s infinite;
+        }
+        .pick-indicator.show { display:flex; align-items:center; gap:10px; }
+        @keyframes pulse-gold { 0%,100%{box-shadow:0 0 20px rgba(245,184,122,0.3);} 50%{box-shadow:0 0 40px rgba(245,184,122,0.6);} }
+        .map-controls {
+            position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+            z-index:999; display:flex; gap:4px; flex-wrap:wrap; justify-content:center;
+            background:rgba(10,20,25,0.85); backdrop-filter:blur(16px);
+            padding:6px 14px; border-radius:50px; border:1px solid rgba(79,191,139,0.1);
+            box-shadow:0 8px 32px rgba(0,0,0,0.6); max-width:92%;
+        }
+        .map-controls .btn-map {
+            background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06);
+            color:#fff; border-radius:40px; padding:5px 12px; font-size:0.55rem; font-weight:500;
+            transition:var(--transition); display:flex; align-items:center; gap:3px; white-space:nowrap;
+        }
+        .map-controls .btn-map:hover { background:rgba(79,191,139,0.15); border-color:var(--accent); color:#fff; transform:translateY(-2px); box-shadow:0 4px 16px rgba(79,191,139,0.2); }
+        .map-controls .btn-map.disabled { opacity:0.3; pointer-events:none; cursor:not-allowed; }
+        .offline-banner {
+            position:absolute; top:72px; right:12px; z-index:999;
+            background:rgba(245,160,60,0.92); backdrop-filter:blur(12px);
+            color:var(--bg-primary); padding:4px 14px; border-radius:40px; font-size:0.65rem; font-weight:600;
+            display:none; border:1px solid rgba(255,255,255,0.15); box-shadow:0 4px 20px rgba(0,0,0,0.3);
+        }
+        .offline-banner.show { display:flex; align-items:center; gap:6px; }
+        .right-panel {
+            width:520px; min-width:520px;
+            background:rgba(10,20,25,0.95); backdrop-filter:blur(12px);
+            border-left:1px solid rgba(79,191,139,0.06);
+            display:flex; flex-direction:column; height:100vh; overflow:hidden;
+        }
+        .panel-header { padding:0.5rem 1rem 0.4rem; border-bottom:1px solid rgba(79,191,139,0.06); flex-shrink:0; background:rgba(10,20,25,0.6); }
+        .panel-header h5 { color:var(--text-secondary); font-weight:700; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center; margin:0; }
+        .panel-header h5 .badge-stops { font-size:0.55rem; font-weight:500; background:rgba(79,191,139,0.1); color:var(--text-muted); padding:2px 10px; border-radius:40px; }
+        .panel-actions { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
+        .panel-actions .btn-sm-custom {
+            background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.04);
+            color:var(--text-muted); border-radius:30px; padding:2px 8px; font-size:0.5rem; font-weight:500;
+            transition:var(--transition);
+        }
+        .panel-actions .btn-sm-custom:hover { background:rgba(255,255,255,0.06); color:var(--text-primary); }
+        .panel-actions .btn-sm-custom.danger:hover { background:var(--danger-glow); color:var(--danger); border-color:var(--danger); }
+        .panel-actions .btn-sm-custom.disabled { opacity:0.3; pointer-events:none; cursor:not-allowed; }
+        .panel-scroll { flex:1; overflow-y:auto; padding:0.4rem 0.8rem; }
+        .itinerary-list { display:flex; flex-direction:column; gap:4px; width:100%; }
+        .itinerary-item {
+            background:rgba(255,255,255,0.04); border-radius:8px; padding:0.5rem 0.7rem;
+            border:1px solid rgba(255,255,255,0.06); transition:var(--transition);
+            cursor:pointer; display:flex; align-items:center; gap:10px; min-height:42px;
+        }
+        .itinerary-item:hover { background:rgba(255,255,255,0.08); border-color:rgba(79,191,139,0.2); }
+        .itinerary-item .step-number {
+            background:rgba(79,191,139,0.15); color:var(--accent);
+            border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+            font-size:0.65rem; font-weight:700; flex-shrink:0;
+        }
+        .itinerary-item .step-number.driver-step { background:rgba(245,200,80,0.2); color:var(--gold); font-size:0.75rem; }
+        .itinerary-item .step-content { flex:1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
+        .itinerary-item .step-name { font-weight:600; color:#fff; cursor:default; font-size:0.75rem; }
+        .itinerary-item .step-name:hover { color:var(--accent) !important; }
+        .itinerary-item .step-phone { font-size:0.5rem; opacity:0.5; background:rgba(255,255,255,0.06); padding:0 8px; border-radius:20px; cursor:default; color:#fff; }
+        .itinerary-item .step-phone:hover { opacity:1; background:var(--accent-glow); color:var(--accent) !important; }
+        .itinerary-item .step-address { font-size:0.6rem; opacity:0.5; color:#fff; cursor:default; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .itinerary-item .step-address:hover { opacity:0.8; color:var(--accent) !important; }
+        .itinerary-item .step-dist { color:var(--accent); font-size:0.6rem; font-weight:600; background:rgba(79,191,139,0.1); padding:0 10px; border-radius:20px; white-space:nowrap; flex-shrink:0; margin-left:auto; }
+        .itinerary-empty { text-align:center; opacity:0.4; padding:2rem 0; color:var(--text-muted); }
+        .itinerary-empty i { font-size:2rem; display:block; margin-bottom:8px; }
+        .panel-footer { padding:0.3rem 1rem 0.5rem; border-top:1px solid rgba(79,191,139,0.06); flex-shrink:0; background:rgba(10,20,25,0.6); }
+        .total-dist { font-weight:700; background:rgba(79,191,139,0.08); padding:0.25rem 1rem; border-radius:40px; font-size:0.7rem; color:var(--accent); border:1px solid rgba(79,191,139,0.08); text-align:center; display:block; }
+        .custom-marker {
+            border-radius:50%; text-align:center; font-weight:700; width:28px; height:28px;
+            display:flex; align-items:center; justify-content:center;
+            border:2px solid rgba(255,255,255,0.9); box-shadow:0 4px 16px rgba(0,0,0,0.4);
+            color:#fff; font-size:0.6rem; transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .custom-marker:hover { transform:scale(1.2); box-shadow:0 6px 24px rgba(0,0,0,0.5); z-index:1000; }
+        .custom-marker-driver { background:linear-gradient(135deg,#2a7a4e,#3daa78); border-color:var(--gold); width:34px; height:34px; font-size:0.8rem; }
+        .custom-marker-pax { background:linear-gradient(135deg,#d48a4a,#e8944a); cursor:default; }
+        .custom-marker-pax-ordered { background:linear-gradient(135deg,var(--accent),var(--accent-dark)); border-color:#a5e0c0; cursor:default; }
+        .marker-label {
+            position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
+            background:rgba(0,0,0,0.8); backdrop-filter:blur(4px); color:#fff;
+            font-size:0.5rem; font-weight:600; padding:1px 6px; border-radius:10px;
+            white-space:nowrap; pointer-events:none; border:1px solid rgba(255,255,255,0.1);
+            max-width:80px; overflow:hidden; text-overflow:ellipsis;
+        }
+        .leaflet-popup-content-wrapper { background:rgba(10,20,25,0.92) !important; backdrop-filter:blur(12px) !important; color:var(--text-primary) !important; border:1px solid rgba(79,191,139,0.1) !important; border-radius:12px !important; }
+        .leaflet-popup-tip { background:rgba(10,20,25,0.92) !important; }
+        .leaflet-tile-pane { filter:brightness(0.9) contrast(1.05) saturate(0.95); }
+        .leaflet-control-zoom { border:none !important; box-shadow:0 4px 20px rgba(0,0,0,0.4) !important; }
+        .leaflet-control-zoom a { background:rgba(10,20,25,0.85) !important; color:var(--text-secondary) !important; border-color:rgba(79,191,139,0.08) !important; backdrop-filter:blur(8px) !important; }
+        .leaflet-control-zoom a:hover { background:rgba(79,191,139,0.15) !important; color:var(--text-primary) !important; }
+        .bulk-modal-overlay {
+            position:fixed; top:0; left:0; right:0; bottom:0;
+            background:rgba(0,0,0,0.7); backdrop-filter:blur(8px);
+            z-index:2000; display:none; align-items:center; justify-content:center;
+        }
+        .bulk-modal-overlay.show { display:flex; }
+        .bulk-modal {
+            background:var(--bg-card); border-radius:var(--radius-lg); padding:1.5rem;
+            max-width:500px; width:90%; max-height:80vh;
+            border:1px solid rgba(79,191,139,0.1); box-shadow:var(--shadow-hover);
+        }
+        .bulk-modal h4 { color:var(--text-primary); margin-bottom:0.5rem; font-weight:700; }
+        .bulk-modal textarea {
+            width:100%; height:180px; background:rgba(30,63,73,0.6);
+            border:1px solid rgba(255,255,255,0.06); color:var(--text-primary);
+            border-radius:var(--radius-sm); padding:0.8rem; font-size:0.75rem;
+            font-family:'Inter',monospace; resize:vertical; outline:none;
+        }
+        .bulk-modal textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+        .bulk-modal .modal-actions { display:flex; gap:8px; margin-top:0.8rem; }
+        .import-input { display:none; }
+        
+        .share-link-container {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            margin-top: 4px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 30px;
+            padding: 2px 4px 2px 10px;
+            border: 1px solid rgba(79,191,139,0.06);
+            flex-wrap: wrap;
+        }
+        .share-link-container input {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.5rem;
+            flex: 1;
+            min-width: 60px;
+            outline: none;
+            padding: 2px 0;
+            font-family: 'Inter', monospace;
+        }
+        .share-link-container .btn-share {
+            background: rgba(79,191,139,0.15);
+            border: none;
+            color: var(--accent);
+            border-radius: 30px;
+            padding: 2px 8px;
+            font-size: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+        .share-link-container .btn-share:hover { background: var(--accent); color: var(--bg-primary); }
+        .share-link-container .btn-share.copied { background: var(--gold); color: var(--bg-primary); }
+        
+        .btn-whatsapp-share {
+            background: var(--whatsapp);
+            border: none;
+            color: #fff;
+            border-radius: 30px;
+            padding: 2px 10px;
+            font-size: 0.55rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-whatsapp-share:hover {
+            background: var(--whatsapp-dark);
+            transform: scale(1.05);
+            color: #fff;
+        }
+        .btn-whatsapp-share i { font-size: 0.65rem; }
+        
+        .share-buttons-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        
+        .driver-access-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(79,191,139,0.1);
+            border: 1px solid rgba(79,191,139,0.15);
+            border-radius: 30px;
+            padding: 2px 10px;
+            font-size: 0.55rem;
+            color: var(--accent);
+            margin-left: 4px;
+        }
+        .driver-access-badge .driver-name-tag {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .readonly-header-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+            background: rgba(79,191,139,0.12);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(79,191,139,0.15);
+            padding: 4px 20px;
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--accent);
+            display: none;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .readonly-header-banner.show { display: block; }
+        .readonly-header-banner i { margin-right: 8px; }
+        .readonly-header-banner .driver-name-tag { font-weight: 700; color: #fff; }
+        
+        /* Short URL generator loading */
+        .short-url-loading {
+            display: none;
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            padding: 2px 8px;
+        }
+        .short-url-loading.show { display: inline-block; }
+        .short-url-loading .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width:1400px) { .right-panel { width:420px; min-width:420px; } .sidebar { width:340px; min-width:340px; } }
+        @media (max-width:1200px) { .sidebar { width:300px; min-width:300px; } .right-panel { width:360px; min-width:360px; } .search-container { width:360px; } }
+        @media (max-width:992px) { .sidebar { width:260px; min-width:260px; } .right-panel { width:320px; min-width:320px; } }
+        @media (max-width:768px) {
+            .app-wrapper { flex-direction:column; }
+            .sidebar { width:100%; min-width:unset; max-height:32vh; border-right:none; border-bottom:1px solid rgba(79,191,139,0.06); }
+            .right-panel { width:100%; min-width:unset; max-height:30vh; border-left:none; border-top:1px solid rgba(79,191,139,0.06); }
+            .map-container { flex:1; min-height:30vh; }
+            .search-container { width:calc(100% - 20px); top:8px; }
+            .share-link-container input { font-size: 0.4rem; min-width: 40px; }
+        }
+        .itinerary-item .step-content * { color:#ffffff !important; opacity:1 !important; }
+        .itinerary-item .step-dist { color:var(--accent) !important; }
+    </style>
+</head>
+<body>
+<div class="readonly-header-banner" id="readonlyHeaderBanner">
+    <i class="bi bi-eye"></i> Viewing: <span class="driver-name-tag" id="readonlyDriverName">Driver</span>'s Route · <span style="opacity:0.6;">Read-Only</span>
+</div>
+
+<div class="app-wrapper">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="mainSidebar">
+        <div class="brand-header">
+            <div class="brand-left"><div class="logo-icon"><i class="bi bi-map"></i></div><span class="brand-name">RoutMap</span></div>
+            <div class="lang-group">
+                <span class="btn-lang active" data-lang="en">EN</span>
+                <span class="btn-lang" data-lang="es">ES</span>
+                <span class="btn-lang" data-lang="pt">PT</span>
+            </div>
+        </div>
+        
+        <div class="card-glass" id="shareSection">
+            <div class="card-title"><span><i class="bi bi-share me-1"></i> Share Map</span></div>
+            <div class="share-link-container" id="shareLinkContainer">
+                <input type="text" id="shareLinkInput" readonly value="Set driver first to generate link" placeholder="Set driver to share">
+                <button class="btn-share" id="copyShareLinkBtn" title="Copy link">📋</button>
+            </div>
+            <div class="share-buttons-row" id="shareButtonsRow">
+                <button class="btn-whatsapp-share" id="whatsappShareBtn" style="display:none;">
+                    <i class="bi bi-whatsapp"></i> Share on WhatsApp
+                </button>
+                <button class="btn-share" id="shareNativeBtn" style="display:none;background:rgba(255,255,255,0.08);color:#fff;padding:2px 10px;font-size:0.55rem;border:none;border-radius:30px;cursor:pointer;">
+                    <i class="bi bi-share"></i> Share
+                </button>
+                <span class="short-url-loading" id="shortUrlLoading"><span class="spinner"></span> Generating short link...</span>
+            </div>
+            <div id="driverAccessInfo" style="font-size:0.6rem;color:var(--text-muted);margin-top:3px;display:none;">
+                <span class="driver-access-badge"><i class="bi bi-person-check"></i> <span class="driver-name-tag" id="accessDriverName">Driver</span> has access</span>
+                <span style="opacity:0.4;margin-left:6px;">Click link to view this map</span>
+            </div>
+        </div>
+        
+        <div class="card-glass">
+            <div class="card-title"><span><i class="bi bi-magic me-1"></i> Smart Order</span></div>
+            <button id="optimizeBtn" class="btn-accent w-100 py-1">✨ Find Optimal Path</button>
+            <div class="status-bar mt-1" id="apiStatus">📍 Add driver & passengers to begin</div>
+        </div>
+        <!-- DRIVER -->
+        <div class="card-glass" id="driverCard">
+            <div class="card-title"><span><i class="bi bi-car-front me-1"></i> Driver</span><span class="badge-custom empty" id="driverBadge">Not Set</span></div>
+            <div class="input-group-row">
+                <input type="text" id="driverName" class="form-control-sm-custom name-field" placeholder="Name" value="">
+                <input type="text" id="driverAddr" class="form-control-sm-custom address-field" placeholder="Address" value="">
+            </div>
+            <div class="input-group-row mt-1">
+                <input type="tel" id="driverPhone" class="form-control-sm-custom phone-field" placeholder="📞 Phone (optional)" value="">
+            </div>
+            <div class="btn-group-row mt-1" id="driverBtnGroup">
+                <button id="setDriverBtn" class="btn-accent">Set</button>
+                <button id="pickDriverBtn" class="btn-outline-accent"><i class="bi bi-geo-alt"></i> Pick</button>
+                <button id="removeDriverBtn" class="btn-ghost danger" disabled>✕</button>
+            </div>
+            <div class="driver-status mt-1" id="driverStatus">
+                <div class="driver-row">
+                    <span class="status-dot not-set" id="driverStatusDot"></span>
+                    <span class="driver-name" id="driverStatusName">🚗 No driver set</span>
+                    <span class="driver-phone empty-phone" id="driverStatusPhone">📞 Phone</span>
+                    <span class="driver-actions">
+                        <button class="btn-icon edit-location" id="driverEditLocationBtn" title="Edit location on map (drag marker)"><i class="bi bi-geo-alt"></i></button>
+                    </span>
+                </div>
+                <div class="driver-address" id="driverStatusAddr">📍 No address set</div>
+            </div>
+        </div>
+        <!-- PASSENGERS -->
+        <div class="card-glass" id="passengerCard">
+            <div class="card-title"><span><i class="bi bi-people me-1"></i> Passengers</span><span class="badge-custom empty" id="passengerBadge">0</span></div>
+            <div class="input-group-row">
+                <input type="text" id="paxName" class="form-control-sm-custom name-field" placeholder="Name" value="">
+                <input type="text" id="paxAddr" class="form-control-sm-custom address-field" placeholder="Address" value="">
+            </div>
+            <div class="input-group-row mt-1">
+                <input type="tel" id="paxPhone" class="form-control-sm-custom phone-field" placeholder="📞 Phone (optional)" value="">
+            </div>
+            <div class="btn-group-row mt-1" id="passengerBtnGroup">
+                <button id="addPassengerBtn" class="btn-accent"><i class="bi bi-plus-lg"></i> Add</button>
+                <button id="pickPassengerBtn" class="btn-outline-accent"><i class="bi bi-geo-alt"></i> Pick</button>
+                <button id="bulkAddBtn" class="btn-ghost"><i class="bi bi-list-ul"></i> Bulk</button>
+                <button id="clearBtn" class="btn-ghost danger"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="pax-list" id="paxListContainer"><div class="text-center text-muted small py-1" style="opacity:0.4;">✨ No passengers yet</div></div>
+        </div>
+    </div>
+    <!-- MAP -->
+    <div class="map-container" id="mapContainer">
+        <div id="map"></div>
+        <div class="offline-banner" id="offlineBanner"><i class="bi bi-wifi-off"></i> Offline Mode</div>
+        <div class="search-container">
+            <div class="search-wrapper">
+                <input type="text" id="searchInput" placeholder="🔍 Search address..." autocomplete="off">
+                <span class="search-icon"><i class="bi bi-search"></i></span>
+                <div class="search-results" id="searchResults"></div>
+            </div>
+        </div>
+        <div class="pick-indicator" id="pickIndicator">
+            <span id="pickModeText">📍 Tap map to set location</span>
+            <button class="btn btn-sm btn-dark ms-1" id="cancelPickBtn" style="border-radius:40px;padding:2px 12px;font-weight:600;font-size:0.65rem;">✕ Cancel</button>
+        </div>
+        <div class="map-controls" id="mapControls">
+            <button class="btn-map" id="downloadMapBtn"><i class="bi bi-image"></i> PNG</button>
+            <button class="btn-map" id="printMapBtn"><i class="bi bi-file-pdf"></i> PDF</button>
+            <button class="btn-map" id="saveStateBtn"><i class="bi bi-save"></i> Save</button>
+            <button class="btn-map" id="loadStateBtn"><i class="bi bi-arrow-counterclockwise"></i> Restore</button>
+            <button class="btn-map" id="historyBtn"><i class="bi bi-clock-history"></i> History</button>
+            <button class="btn-map" id="exportDataBtn"><i class="bi bi-file-earmark-arrow-up"></i> Export</button>
+            <button class="btn-map" id="importDataBtn"><i class="bi bi-file-earmark-arrow-down"></i> Import</button>
+            <input type="file" id="importFileInput" class="import-input" accept=".json">
+        </div>
+    </div>
+    <!-- RIGHT PANEL -->
+    <div class="right-panel" id="rightPanel">
+        <div class="panel-header">
+            <h5><span><i class="bi bi-list-ul me-1"></i> Optimal Route</span><span class="badge-stops" id="stopCount">0 stops</span></h5>
+            <div class="panel-actions" id="panelActions">
+                <button class="btn-sm-custom" id="exportCsvBtn"><i class="bi bi-file-earmark-spreadsheet"></i> CSV</button>
+                <button class="btn-sm-custom" id="exportGpxBtn"><i class="bi bi-geo-alt"></i> GPX</button>
+                <button id="clearRouteBtn" class="btn-sm-custom danger">🗑️ Clear</button>
+                <button id="exportRouteBtn" class="btn-sm-custom"><i class="bi bi-download"></i> Export</button>
+                <button id="printRouteBtn" class="btn-sm-custom"><i class="bi bi-printer"></i> Print</button>
+                <button id="saveRouteBtn" class="btn-sm-custom"><i class="bi bi-bookmark-plus"></i> Save</button>
+            </div>
+        </div>
+        <div class="panel-scroll" id="panelScroll"><div id="panelSteps"><div class="itinerary-empty"><i class="bi bi-map"></i><span>✨ Add a driver, add passengers, then click "Find Optimal Path"</span></div></div></div>
+        <div class="panel-footer">
+            <div class="stats-badge mb-1" id="statsBadge">
+                <span class="stat-item"><i class="bi bi-pin-map"></i> <span class="stat-value" id="statStops">0</span> stops</span>
+                <span class="stat-item"><i class="bi bi-rulers"></i> <span class="stat-value" id="statDistance">0</span> km</span>
+                <span class="stat-item"><i class="bi bi-clock"></i> <span class="stat-value" id="statTime">0</span> min</span>
+                <span class="stat-item"><i class="bi bi-fuel-pump"></i> <span class="stat-value" id="statFuel">0</span> L</span>
+            </div>
+            <span class="total-dist" id="panelTotalDistance">📏 Total: ---</span>
+        </div>
+    </div>
+</div>
+<!-- BULK MODAL -->
+<div class="bulk-modal-overlay" id="bulkModal">
+    <div class="bulk-modal">
+        <h4><i class="bi bi-list-ul me-2"></i> Bulk Add Passengers</h4>
+        <p style="color:var(--text-muted);font-size:0.75rem;">One per line: <strong>Name, Address, Phone</strong></p>
+        <textarea id="bulkTextarea" placeholder="Alice, 123 Main St, +1 555-123-4567&#10;Bob, 456 Oak Ave"></textarea>
+        <div class="modal-actions"><button class="btn-accent" id="bulkAddConfirm"><i class="bi bi-check-lg"></i> Add All</button><button class="btn-ghost" id="bulkCancel">Cancel</button></div>
+    </div>
+</div>
+<!-- HISTORY MODAL -->
+<div class="bulk-modal-overlay" id="historyModal">
+    <div class="bulk-modal">
+        <h4><i class="bi bi-clock-history me-2"></i> Route History</h4>
+        <div id="historyList" style="max-height:250px;overflow-y:auto;margin:0.5rem 0;"><p style="color:var(--text-muted);font-size:0.75rem;">No saved routes yet.</p></div>
+        <div class="modal-actions"><button class="btn-ghost danger" id="clearHistoryBtn">Clear All</button><button class="btn-ghost" id="historyCancel">Close</button></div>
+    </div>
+</div>
+
+<script>
+    // ----- TRANSLATIONS -----
+    const translations = {
+        en: {
+            apiStatus: '📍 Add driver & passengers to begin',
+            driverSet: '✅ Set',
+            driverNotSetBadge: 'Not Set',
+            noPassengers: '✨ No passengers yet',
+            phonePlaceholder: '📞 Phone',
+            balloonEmpty: '✨ Add a driver, add passengers, then click "Find Optimal Path"',
+            totalDistance: '📏 Total: ---',
+            driverRemoved: '🗑️ Driver removed',
+            passengersCleared: '🗑️ All passengers cleared',
+            pngDownloaded: '✅ PNG downloaded!',
+            pdfDownloaded: '✅ PDF downloaded!',
+            pickModeCancelled: '✅ Pick mode off',
+            routeOptimized: '✅ Route optimized!',
+            optimizationFailed: '❌ Optimization failed',
+            geocodingFailed: '❌ Geocoding failed',
+            passengerAdded: '✅ Added: {name}',
+            passengerRemoved: '🗑️ Passenger removed',
+            orderUpdated: '📋 Order updated via drag',
+            mapReady: '📍 Map ready',
+            generatingPNG: '📥 Generating PNG...',
+            generatingPDF: '📄 Generating PDF...',
+            geocoding: '⏳ Geocoding...',
+            optimizing: '⏳ Optimizing...',
+            searchPlaceholder: '🔍 Search address...',
+            gettingLocation: '📍 Getting your location...',
+            locationError: '⚠️ Could not get location.',
+            locationSuccess: '📍 Location found!',
+            clearRoute: '🗑️ Clear Route',
+            exportRoute: '📤 Export',
+            printRoute: '🖨️ Print',
+            optimalRoute: '📋 OPTIMAL ROUTE',
+            total: '📏 Total:',
+            stops: 'stops',
+            stateSaved: '💾 State saved!',
+            stateRestored: '✅ State restored!',
+            noState: 'ℹ️ No saved state found',
+            routeSaved: '💾 Route saved to history!',
+            historyCleared: '🗑️ History cleared!',
+            noHistory: 'No saved routes yet.',
+            bulkAdded: '✅ {count} passengers added!',
+            csvExported: '📊 CSV exported!',
+            gpxExported: '📍 GPX exported!',
+            dataExported: '✅ Data exported!',
+            dataImported: '✅ Data imported!',
+            linkCopied: '📋 Link copied!',
+            linkGenerated: '🔗 Share link generated!',
+            readOnlyMode: '👁️ Viewing: {name}\'s Route · Read-Only',
+            shareWhatsApp: '📋 My route: {link}',
+            generatingLink: '⏳ Generating short link...'
+        },
+        es: { 
+            apiStatus: '📍 Añade conductor y pasajeros', 
+            driverSet: '✅ Fijado', 
+            driverNotSetBadge: 'No Fijado', 
+            noPassengers: '✨ Sin pasajeros aún', 
+            phonePlaceholder: '📞 Teléfono', 
+            balloonEmpty: '✨ Añade conductor, pasajeros y presiona "Ruta Óptima"', 
+            totalDistance: '📏 Total: ---', 
+            driverRemoved: '🗑️ Conductor eliminado', 
+            passengersCleared: '🗑️ Pasajeros eliminados', 
+            pngDownloaded: '✅ PNG descargado!', 
+            pdfDownloaded: '✅ PDF descargado!', 
+            pickModeCancelled: '✅ Modo selección off', 
+            routeOptimized: '✅ Ruta optimizada!', 
+            optimizationFailed: '❌ Falló optimización', 
+            geocodingFailed: '❌ Falló geocodificación', 
+            passengerAdded: '✅ Añadido: {name}', 
+            passengerRemoved: '🗑️ Pasajero eliminado', 
+            orderUpdated: '📋 Orden actualizado', 
+            mapReady: '📍 Mapa listo', 
+            generatingPNG: '📥 Generando PNG...', 
+            generatingPDF: '📄 Generando PDF...', 
+            geocoding: '⏳ Geocodificando...', 
+            optimizing: '⏳ Optimizando...', 
+            searchPlaceholder: '🔍 Buscar dirección...', 
+            gettingLocation: '📍 Obteniendo ubicación...', 
+            locationError: '⚠️ No se pudo obtener ubicación.', 
+            locationSuccess: '📍 Ubicación encontrada!', 
+            clearRoute: '🗑️ Limpiar Ruta', 
+            exportRoute: '📤 Exportar', 
+            printRoute: '🖨️ Imprimir', 
+            optimalRoute: '📋 RUTA ÓPTIMA', 
+            total: '📏 Total:', 
+            stops: 'paradas', 
+            stateSaved: '💾 Estado guardado!', 
+            stateRestored: '✅ Estado restaurado!', 
+            noState: 'ℹ️ No se encontró estado', 
+            routeSaved: '💾 Ruta guardada!', 
+            historyCleared: '🗑️ Historial limpiado!', 
+            noHistory: 'No hay rutas guardadas.', 
+            bulkAdded: '✅ {count} pasajeros añadidos!', 
+            csvExported: '📊 CSV exportado!', 
+            gpxExported: '📍 GPX exportado!', 
+            dataExported: '✅ Datos exportados!', 
+            dataImported: '✅ Datos importados!',
+            linkCopied: '📋 Enlace copiado!',
+            linkGenerated: '🔗 Enlace de compartición generado!',
+            readOnlyMode: '👁️ Viendo: {name}\'s Ruta · Solo Lectura',
+            shareWhatsApp: '📋 Mi ruta: {link}',
+            generatingLink: '⏳ Generando enlace corto...'
+        },
+        pt: { 
+            apiStatus: '📍 Adicione motorista e passageiros', 
+            driverSet: '✅ Definido', 
+            driverNotSetBadge: 'Não Definido', 
+            noPassengers: '✨ Nenhum passageiro', 
+            phonePlaceholder: '📞 Telefone', 
+            balloonEmpty: '✨ Adicione motorista, passageiros e pressione "Rota Ótima"', 
+            totalDistance: '📏 Total: ---', 
+            driverRemoved: '🗑️ Motorista removido', 
+            passengersCleared: '🗑️ Passageiros removidos', 
+            pngDownloaded: '✅ PNG baixado!', 
+            pdfDownloaded: '✅ PDF baixado!', 
+            pickModeCancelled: '✅ Modo seleção off', 
+            routeOptimized: '✅ Rota otimizada!', 
+            optimizationFailed: '❌ Falha otimização', 
+            geocodingFailed: '❌ Falha geocodificação', 
+            passengerAdded: '✅ Adicionado: {name}', 
+            passengerRemoved: '🗑️ Passageiro removido', 
+            orderUpdated: '📋 Ordem atualizada', 
+            mapReady: '📍 Mapa pronto', 
+            generatingPNG: '📥 Gerando PNG...', 
+            generatingPDF: '📄 Gerando PDF...', 
+            geocoding: '⏳ Geocodificando...', 
+            optimizing: '⏳ Otimizando...', 
+            searchPlaceholder: '🔍 Buscar endereço...', 
+            gettingLocation: '📍 Obtendo localização...', 
+            locationError: '⚠️ Não foi possível obter localização.', 
+            locationSuccess: '📍 Localização encontrada!', 
+            clearRoute: '🗑️ Limpar Rota', 
+            exportRoute: '📤 Exportar', 
+            printRoute: '🖨️ Imprimir', 
+            optimalRoute: '📋 ROTA ÓTIMA', 
+            total: '📏 Total:', 
+            stops: 'paradas', 
+            stateSaved: '💾 Estado salvo!', 
+            stateRestored: '✅ Estado restaurado!', 
+            noState: 'ℹ️ Nenhum estado salvo', 
+            routeSaved: '💾 Rota salva!', 
+            historyCleared: '🗑️ Histórico limpo!', 
+            noHistory: 'Nenhuma rota salva.', 
+            bulkAdded: '✅ {count} passageiros adicionados!', 
+            csvExported: '📊 CSV exportado!', 
+            gpxExported: '📍 GPX exportado!', 
+            dataExported: '✅ Dados exportados!', 
+            dataImported: '✅ Dados importados!',
+            linkCopied: '📋 Link copiado!',
+            linkGenerated: '🔗 Link de compartilhamento gerado!',
+            readOnlyMode: '👁️ Visualizando: {name}\'s Rota · Somente Leitura',
+            shareWhatsApp: '📋 Minha rota: {link}',
+            generatingLink: '⏳ Gerando link curto...'
+        }
+    };
+    let currentLang = 'en';
+    function t(key, repl = {}) { let txt = translations[currentLang][key] || key; for (let [k,v] of Object.entries(repl)) txt = txt.replace(`{${k}}`, v); return txt; }
+
+    // ----- HELPERS -----
+    function haversine(lat1, lon1, lat2, lon2) { const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function escapeHtml(s) { if (!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function generateDriverId() { return 'driver_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8); }
+
+    // ----- SHORT URL SYSTEM (uses localStorage to store data) -----
+    function generateShortCode() {
+        // Generate a short unique code (6 characters)
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    function saveRouteData(data) {
+        // Save route data in localStorage with a short code
+        const code = generateShortCode();
+        const storageData = {
+            ...data,
+            timestamp: Date.now()
+        };
+        try {
+            localStorage.setItem('routmap_share_' + code, JSON.stringify(storageData));
+            // Also save a list of all codes for cleanup
+            let codes = JSON.parse(localStorage.getItem('routmap_share_codes') || '[]');
+            codes.push({ code, timestamp: Date.now() });
+            // Keep only last 100
+            if (codes.length > 100) codes = codes.slice(-100);
+            localStorage.setItem('routmap_share_codes', JSON.stringify(codes));
+            return code;
+        } catch (e) {
+            console.error('Failed to save route data:', e);
+            return null;
+        }
+    }
+
+    function loadRouteData(code) {
+        try {
+            const data = localStorage.getItem('routmap_share_' + code);
+            if (!data) return null;
+            return JSON.parse(data);
+        } catch (e) {
+            console.error('Failed to load route data:', e);
+            return null;
+        }
+    }
+
+    function cleanupOldShareData() {
+        try {
+            const codes = JSON.parse(localStorage.getItem('routmap_share_codes') || '[]');
+            const now = Date.now();
+            const expired = codes.filter(c => now - c.timestamp > 86400000); // 24 hours
+            expired.forEach(c => {
+                localStorage.removeItem('routmap_share_' + c.code);
+            });
+            const valid = codes.filter(c => now - c.timestamp <= 86400000);
+            localStorage.setItem('routmap_share_codes', JSON.stringify(valid));
+        } catch (e) {}
+    }
+
+    // Run cleanup periodically
+    setInterval(cleanupOldShareData, 3600000); // Every hour
+
+    // ----- STATE -----
+    let map = null;
+    let driver = { lat: null, lng: null, address: '', name: '', phone: '', driverId: null };
+    let passengers = [];
+    let markers = [], labelMarkers = [], routeLayers = [];
+    let nextId = 1, currentOrder = [];
+    let pickMode = null, tempMarker = null;
+    let userLocation = null, cachedRouteData = null;
+    let routeHistory = [];
+    const STORAGE_KEY = 'routmap_pro_state', HISTORY_KEY = 'routmap_history';
+    let editingDriver = false;
+    let editingPassengerId = null;
+    let editMode = false;
+    let activeInput = null;
+    let activeEditData = null;
+    let isEditingField = false;
+    let shareLinkLoaded = false;
+    let isReadOnly = false;
+    let currentShareLink = '';
+
+    // ----- READ-ONLY MODE -----
+    function enableReadOnlyMode(driverName) {
+        isReadOnly = true;
+        document.getElementById('mainSidebar').classList.add('readonly-sidebar');
+        const banner = document.getElementById('readonlyHeaderBanner');
+        banner.classList.add('show');
+        document.getElementById('readonlyDriverName').textContent = driverName || 'Driver';
+        document.querySelectorAll('.map-controls .btn-map:not(#downloadMapBtn):not(#printMapBtn)').forEach(el => {
+            el.classList.add('disabled');
+        });
+        document.querySelectorAll('.panel-actions .btn-sm-custom:not(#exportCsvBtn):not(#exportGpxBtn):not(#exportRouteBtn):not(#printRouteBtn)').forEach(el => {
+            el.classList.add('disabled');
+        });
+        setStatus(t('readOnlyMode', {name: driverName || 'Driver'}), 'readonly');
+    }
+
+    // ----- SHARE LINK FUNCTIONS (USING SHORT CODE) -----
+    function generateShareLink() {
+        if (isReadOnly) return null;
+        if (!driver.lat || !driver.name) {
+            document.getElementById('shareLinkInput').value = 'Set driver first to generate link';
+            document.getElementById('driverAccessInfo').style.display = 'none';
+            document.getElementById('whatsappShareBtn').style.display = 'none';
+            document.getElementById('shareNativeBtn').style.display = 'none';
+            return null;
+        }
+        
+        if (!driver.driverId) {
+            driver.driverId = generateDriverId();
+        }
+        
+        const payload = {
+            driverId: driver.driverId,
+            name: driver.name,
+            phone: driver.phone || '',
+            address: driver.address || '',
+            lat: driver.lat,
+            lng: driver.lng,
+            passengers: passengers.map(p => ({
+                id: p.id,
+                name: p.name,
+                phone: p.phone || '',
+                address: p.address || '',
+                lat: p.lat,
+                lng: p.lng
+            })),
+            currentOrder: currentOrder,
+            timestamp: Date.now()
+        };
+        
+        // Save data with short code
+        const code = saveRouteData(payload);
+        if (!code) {
+            setStatus('❌ Failed to generate share link', 'error');
+            return null;
+        }
+        
+        // Create link with just the code (short and clean)
+        const url = new URL(window.location.href);
+        url.searchParams.set('s', code);
+        
+        currentShareLink = url.toString();
+        document.getElementById('shareLinkInput').value = currentShareLink;
+        document.getElementById('driverAccessInfo').style.display = 'block';
+        document.getElementById('accessDriverName').textContent = driver.name;
+        
+        document.getElementById('whatsappShareBtn').style.display = 'inline-flex';
+        document.getElementById('shareNativeBtn').style.display = 'inline-flex';
+        
+        return currentShareLink;
+    }
+
+    function loadFromShareLink() {
+        const params = new URLSearchParams(window.location.search);
+        
+        // Check for short code first
+        const shortCode = params.get('s');
+        if (shortCode) {
+            const data = loadRouteData(shortCode);
+            if (data) {
+                return restoreFromData(data);
+            }
+            // If short code not found, try old format
+        }
+        
+        // Fallback: try old format (for backward compatibility)
+        const encoded = params.get('map');
+        if (encoded) {
+            try {
+                const decoded = decodeData(encoded);
+                if (decoded) {
+                    return restoreFromData(decoded);
+                }
+            } catch (e) {
+                console.warn('Old format decode failed:', e);
+            }
+        }
+        
+        return false;
+    }
+
+    function restoreFromData(data) {
+        try {
+            if (!data || !data.driverId || !data.lat || !data.lng) {
+                return false;
+            }
+            
+            driver = {
+                lat: data.lat,
+                lng: data.lng,
+                address: data.address || '',
+                name: data.name || 'Driver',
+                phone: data.phone || '',
+                driverId: data.driverId
+            };
+            
+            passengers = data.passengers || [];
+            currentOrder = data.currentOrder || [];
+            nextId = passengers.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1;
+            
+            document.getElementById('driverName').value = driver.name;
+            document.getElementById('driverAddr').value = driver.address;
+            document.getElementById('driverPhone').value = driver.phone;
+            
+            updateDriverUI();
+            updatePassengerUI();
+            updatePassengerBadge();
+            
+            shareLinkLoaded = true;
+            enableReadOnlyMode(driver.name);
+            
+            if (map) {
+                map.setView([driver.lat, driver.lng], 14);
+            }
+            updateMarkersAndMap();
+            clearRoutes();
+            resetItinerary();
+            
+            if (passengers.length > 0) {
+                setTimeout(() => {
+                    optimizeAndRoute();
+                }, 600);
+            }
+            
+            setStatus(t('readOnlyMode', {name: driver.name}), 'readonly');
+            
+            return true;
+        } catch (e) {
+            console.error('Failed to restore data:', e);
+            return false;
+        }
+    }
+
+    // ----- DECODE FOR BACKWARD COMPATIBILITY -----
+    function decodeData(encoded) {
+        try {
+            let b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            const utf8 = atob(b64);
+            const json = decodeURIComponent(escape(utf8));
+            return JSON.parse(json);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function copyShareLink() {
+        if (isReadOnly) return;
+        if (!currentShareLink) {
+            setStatus('⚠️ Generate a share link first', 'error');
+            return;
+        }
+        
+        const btn = document.getElementById('copyShareLinkBtn');
+        navigator.clipboard.writeText(currentShareLink).then(() => {
+            btn.textContent = '✅';
+            btn.classList.add('copied');
+            setStatus(t('linkCopied'), 'success');
+            setTimeout(() => {
+                btn.textContent = '📋';
+                btn.classList.remove('copied');
+            }, 2000);
+        }).catch(() => {
+            const input = document.getElementById('shareLinkInput');
+            input.select();
+            document.execCommand('copy');
+            btn.textContent = '✅';
+            btn.classList.add('copied');
+            setStatus(t('linkCopied'), 'success');
+            setTimeout(() => {
+                btn.textContent = '📋';
+                btn.classList.remove('copied');
+            }, 2000);
+        });
+    }
+
+    function shareOnWhatsApp() {
+        if (!currentShareLink) {
+            setStatus('⚠️ Generate a share link first', 'error');
+            return;
+        }
+        
+        // Show loading indicator
+        const loading = document.getElementById('shortUrlLoading');
+        loading.classList.add('show');
+        
+        // Use the clean short URL
+        const message = encodeURIComponent(t('shareWhatsApp', {link: currentShareLink}));
+        const url = `https://wa.me/?text=${message}`;
+        
+        setTimeout(() => {
+            loading.classList.remove('show');
+            window.open(url, '_blank');
+        }, 300);
+    }
+
+    function shareNative() {
+        if (!currentShareLink) {
+            setStatus('⚠️ Generate a share link first', 'error');
+            return;
+        }
+        
+        if (navigator.share) {
+            navigator.share({
+                title: `RoutMap - ${driver.name}'s Route`,
+                text: t('shareWhatsApp', {link: currentShareLink}),
+                url: currentShareLink
+            }).catch(() => {});
+        } else {
+            copyShareLink();
+        }
+    }
+
+    // ----- LOAD HISTORY -----
+    function loadHistory() { 
+        try { 
+            const data = localStorage.getItem(HISTORY_KEY); 
+            if (data) routeHistory = JSON.parse(data); 
+        } catch(e){} 
+    }
+    function saveHistory() { 
+        try { 
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(routeHistory)); 
+        } catch(e){} 
+    }
+    function addToHistory() {
+        if (isReadOnly) return;
+        if(!currentOrder.length || !driver.lat) return;
+        const nodes = getOrderedNodesForPanel();
+        if(!nodes) return;
+        const entry = { 
+            id:Date.now(), 
+            timestamp:new Date().toLocaleString(), 
+            driver:{...driver}, 
+            passengers:passengers.map(p=>({...p})), 
+            currentOrder:[...currentOrder], 
+            totalDistance:document.getElementById('panelTotalDistance').textContent, 
+            stops:currentOrder.length,
+            driverId: driver.driverId
+        };
+        routeHistory.unshift(entry);
+        if(routeHistory.length>50) routeHistory=routeHistory.slice(0,50);
+        saveHistory();
+        setStatus(t('routeSaved'), 'success');
+        setTimeout(()=>setStatus(t('apiStatus')), 1500);
+    }
+    function restoreFromHistory(id) {
+        if (isReadOnly) return;
+        const entry = routeHistory.find(h=>h.id===id);
+        if(!entry) return;
+        driver = {...entry.driver}; 
+        passengers = entry.passengers.map(p=>({...p})); 
+        currentOrder = [...entry.currentOrder];
+        nextId = passengers.reduce((max,p)=>Math.max(max,p.id),0)+1;
+        cachedRouteData = null;
+        
+        document.getElementById('driverName').value = driver.name || '';
+        document.getElementById('driverAddr').value = driver.address || '';
+        document.getElementById('driverPhone').value = driver.phone || '';
+        
+        updateDriverUI(); 
+        updatePassengerUI(); 
+        updateMarkersAndMap(); 
+        clearRoutes(); 
+        resetItinerary(); 
+        updatePassengerBadge();
+        
+        generateShareLink();
+        
+        setStatus('✅ Route restored from history!','success');
+        setTimeout(()=>setStatus(t('apiStatus')), 1500);
+        setTimeout(optimizeAndRoute, 500);
+    }
+    function clearHistory() { 
+        if (isReadOnly) return;
+        if(!confirm('Clear all route history?')) return; 
+        routeHistory=[]; 
+        saveHistory(); 
+        setStatus(t('historyCleared'),'success'); 
+        setTimeout(()=>setStatus(t('apiStatus')), 1500); 
+    }
+
+    // ----- MAP INIT -----
+    function initMap() {
+        if(map){ map.invalidateSize(); return; }
+        const container = document.getElementById('map');
+        if(!container){ setTimeout(initMap,400); return; }
+        map = L.map('map', { center:[40.7128,-74.0060], zoom:13, zoomControl:true, fadeAnimation:true, preferCanvas:true });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution:'&copy; OSM', maxZoom:19, subdomains:'abcd' }).addTo(map);
+        map.whenReady(()=>setTimeout(()=>map.invalidateSize(),100));
+        setTimeout(()=>{ if(map) map.invalidateSize(); }, 300);
+        map.on('click', handleMapClick);
+        setupSearch();
+        
+        // Cleanup old share data
+        cleanupOldShareData();
+        
+        const loaded = loadFromShareLink();
+        if (loaded) {
+            setStatus(`👁️ ${driver.name}'s Route · Read-Only`, 'readonly');
+        } else {
+            getUserLocation();
+            setStatus(t('mapReady'), '');
+        }
+        
+        loadHistory();
+        
+        if (!loaded && driver.lat) {
+            generateShareLink();
+        }
+    }
+    
+    function getUserLocation() {
+        if(!navigator.geolocation){ setStatus(t('locationError'),'error'); return; }
+        setStatus(t('gettingLocation'),'');
+        navigator.geolocation.getCurrentPosition(
+            (pos)=>{ const {latitude,longitude}=pos.coords; userLocation={lat:latitude,lng:longitude}; if(map && !shareLinkLoaded){ map.setView([latitude,longitude],15); } setStatus(`📍 ${t('locationSuccess')}`,'success'); },
+            ()=>{ setStatus(t('locationError'),'error'); if(map && !shareLinkLoaded) map.setView([40.7128,-74.0060],13); },
+            { enableHighAccuracy:true, timeout:10000, maximumAge:60000 }
+        );
+    }
+    async function reverseGeocode(lat,lng) { try { const resp=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`,{headers:{'User-Agent':'RoutMap/2.0'}}); const data=await resp.json(); return data?.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`; } catch { return `${lat.toFixed(5)}, ${lng.toFixed(5)}`; } }
+    async function geocodeAddress(address) { try { const resp=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,{headers:{'User-Agent':'RoutMap/2.0'}}); const data=await resp.json(); if(!data||!data.length) return null; return { lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon) }; } catch { return null; } }
+
+    // ----- SEARCH -----
+    function setupSearch() {
+        const input=document.getElementById('searchInput'), results=document.getElementById('searchResults');
+        if(!input) return;
+        let timeout;
+        input.addEventListener('input', function() {
+            if (isReadOnly) return;
+            const q=this.value.trim();
+            if(q.length<2){ results.classList.remove('show'); return; }
+            clearTimeout(timeout);
+            timeout=setTimeout(()=>performSearch(q), 400);
+        });
+        document.addEventListener('click', e=>{ if(!e.target.closest('.search-wrapper')) results.classList.remove('show'); });
+    }
+    async function performSearch(q) {
+        if (isReadOnly) return;
+        const results=document.getElementById('searchResults');
+        try {
+            const resp=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8&addressdetails=1`,{headers:{'User-Agent':'RoutMap/2.0'}});
+            const data=await resp.json();
+            if(!data||!data.length){ results.innerHTML=`<div class="search-no-results">No results for "${q}"</div>`; results.classList.add('show'); return; }
+            let html='';
+            data.forEach(item=>{
+                const name=item.display_name.split(',').slice(0,3).join(',');
+                html+=`<div class="search-result-item" data-lat="${item.lat}" data-lng="${item.lon}" data-address="${escapeHtml(item.display_name)}"><div class="result-name">${escapeHtml(name)}</div><div class="result-address">${escapeHtml(item.display_name.substring(0,70))}</div></div>`;
+            });
+            results.innerHTML=html; results.classList.add('show');
+            results.querySelectorAll('.search-result-item').forEach(el=>{
+                el.addEventListener('click', function() {
+                    if (isReadOnly) return;
+                    const lat=parseFloat(this.dataset.lat), lng=parseFloat(this.dataset.lng), addr=this.dataset.address;
+                    results.classList.remove('show');
+                    document.getElementById('searchInput').value=addr;
+                    document.getElementById('searchInput').blur();
+                    if(pickMode==='driver') {
+                        document.getElementById('driverAddr').value=addr;
+                        setDriverFromCoords(lat,lng,addr);
+                        cancelPickMode();
+                    } else if(pickMode==='passenger') {
+                        document.getElementById('paxAddr').value=addr;
+                        const name=document.getElementById('paxName').value.trim()||'Passenger';
+                        const phone=document.getElementById('paxPhone').value.trim()||'';
+                        addPassengerFromCoords(lat,lng,addr,name,phone);
+                        cancelPickMode();
+                    } else {
+                        map.setView([lat,lng],15);
+                    }
+                });
+            });
+        } catch(e) { results.innerHTML=`<div class="search-no-results">Search error</div>`; results.classList.add('show'); }
+    }
+
+    // ----- MAP CLICK -----
+    async function handleMapClick(e) {
+        if (isReadOnly) return;
+        if(!pickMode) return;
+        const {lat,lng}=e.latlng;
+        const addr=await reverseGeocode(lat,lng);
+        if(pickMode==='driver') {
+            document.getElementById('driverAddr').value=addr;
+            setDriverFromCoords(lat,lng,addr);
+            cancelPickMode();
+        } else if(pickMode==='passenger') {
+            document.getElementById('paxAddr').value=addr;
+            const name=document.getElementById('paxName').value.trim()||'Passenger';
+            const phone=document.getElementById('paxPhone').value.trim()||'';
+            addPassengerFromCoords(lat,lng,addr,name,phone);
+            cancelPickMode();
+        }
+    }
+
+    // ----- DRIVER -----
+    function setDriverFromCoords(lat,lng,address) {
+        if (isReadOnly) return;
+        const name=document.getElementById('driverName').value.trim()||'Driver';
+        const phone=document.getElementById('driverPhone').value.trim()||'';
+        driver={lat,lng,address,name,phone,driverId: driver.driverId || generateDriverId()};
+        if(map) map.setView([lat,lng],14);
+        currentOrder=[]; cachedRouteData=null;
+        updateMarkersAndMap(); clearRoutes(); resetItinerary(); updateDriverUI();
+        setStatus(`✅ Driver set: ${address.substring(0,40)}...`,'success');
+        document.getElementById('driverAddr').className='';
+        editingDriver = false;
+        generateShareLink();
+        saveStateSilent();
+    }
+    async function setDriver() {
+        if (isReadOnly) return;
+        const addr=document.getElementById('driverAddr').value.trim();
+        if(!addr){ setStatus('⚠️ Enter an address','error'); return; }
+        try {
+            setStatus(t('geocoding'));
+            const result=await geocodeAddress(addr);
+            if(!result) throw new Error('not found');
+            driver={lat:result.lat,lng:result.lng,address:addr,name:document.getElementById('driverName').value.trim()||'Driver',phone:document.getElementById('driverPhone').value.trim()||'',driverId: driver.driverId || generateDriverId()};
+            if(map) map.setView([result.lat,result.lng],14);
+            currentOrder=[]; cachedRouteData=null;
+            updateMarkersAndMap(); clearRoutes(); resetItinerary(); updateDriverUI();
+            setStatus(`✅ Driver set: ${addr.substring(0,40)}...`,'success');
+            document.getElementById('driverAddr').className='';
+            editingDriver = false;
+            generateShareLink();
+            saveStateSilent();
+        } catch(e) { setStatus(t('geocodingFailed'),'error'); document.getElementById('driverAddr').className='error'; }
+    }
+    function removeDriver() {
+        if (isReadOnly) return;
+        if(!driver.lat) return;
+        if(!confirm(`Remove driver "${driver.name||'Unnamed'}"?`)) return;
+        driver={lat:null,lng:null,address:'',name:'',phone:'',driverId:null};
+        currentOrder=[]; cachedRouteData=null;
+        updateMarkersAndMap(); clearRoutes(); resetItinerary(); updateDriverUI();
+        setStatus(t('driverRemoved'),'');
+        document.getElementById('driverAddr').value='';
+        document.getElementById('driverName').value='';
+        document.getElementById('driverPhone').value='';
+        editingDriver = false;
+        document.getElementById('shareLinkInput').value = 'Set driver first to generate link';
+        document.getElementById('driverAccessInfo').style.display = 'none';
+        document.getElementById('whatsappShareBtn').style.display = 'none';
+        document.getElementById('shareNativeBtn').style.display = 'none';
+    }
+    function toggleDriverEditMode() {
+        if (isReadOnly) return;
+        if(!driver.lat) { setStatus('⚠️ Set driver first','error'); return; }
+        editingDriver = !editingDriver;
+        if(editingDriver) {
+            setStatus(`✏️ Drag driver marker to new location`,'edit-mode');
+            if(map) map.setView([driver.lat, driver.lng], 15);
+        } else {
+            setStatus(t('pickModeCancelled'),'success');
+            setTimeout(()=>setStatus(t('apiStatus')),1500);
+        }
+        updateMarkersAndMap();
+        updateDriverUI();
+    }
+    async function updateDriverLocation(lat,lng,newAddress=null) {
+        if (isReadOnly) return;
+        driver.lat=lat; driver.lng=lng;
+        driver.address = newAddress || await reverseGeocode(lat,lng);
+        currentOrder=[]; cachedRouteData=null;
+        updateDriverUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
+        setStatus(`📍 Driver location updated`,'success');
+        saveStateSilent();
+        document.getElementById('driverAddr').value = driver.address;
+        generateShareLink();
+    }
+
+    // ----- PASSENGERS -----
+    function addPassengerFromCoords(lat,lng,address,name,phone='') {
+        if (isReadOnly) return;
+        const p={id:nextId++,name,address,lat,lng,phone};
+        passengers.push(p);
+        currentOrder=[]; cachedRouteData=null;
+        updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
+        setStatus(t('passengerAdded',{name}),'success');
+        document.getElementById('paxName').value='';
+        document.getElementById('paxAddr').value='';
+        document.getElementById('paxPhone').value='';
+        document.getElementById('paxAddr').className='';
+        saveStateSilent();
+        generateShareLink();
+    }
+    async function addPassengerFromUI() {
+        if (isReadOnly) return;
+        const name=document.getElementById('paxName').value.trim();
+        const addr=document.getElementById('paxAddr').value.trim();
+        const phone=document.getElementById('paxPhone').value.trim()||'';
+        if(!name){ setStatus('⚠️ Enter a name','error'); return; }
+        if(!addr){ setStatus('⚠️ Enter an address','error'); return; }
+        try {
+            setStatus(t('geocoding'));
+            const result=await geocodeAddress(addr);
+            if(!result) throw new Error('not found');
+            addPassengerFromCoords(result.lat,result.lng,addr,name,phone);
+        } catch(e) { setStatus(t('geocodingFailed'),'error'); document.getElementById('paxAddr').className='error'; }
+    }
+    function deletePassenger(id) { 
+        if (isReadOnly) return;
+        if(!confirm('Remove this passenger?')) return; 
+        passengers=passengers.filter(p=>p.id!==id); 
+        currentOrder=[]; cachedRouteData=null; 
+        updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge(); 
+        setStatus(t('passengerRemoved')); 
+        saveStateSilent(); 
+        generateShareLink(); 
+    }
+    function clearAllPassengers() { 
+        if (isReadOnly) return;
+        if(!passengers.length) return; 
+        if(!confirm('Remove all passengers?')) return; 
+        passengers=[]; currentOrder=[]; cachedRouteData=null; 
+        updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge(); 
+        setStatus(t('passengersCleared')); 
+        saveStateSilent(); 
+        generateShareLink(); 
+    }
+
+    // ----- UI UPDATES -----
+    function setStatus(msg,type='') { const el=document.getElementById('apiStatus'); if(el){ el.textContent=msg; el.className='status-bar '+type; } }
+
+    function updateDriverUI() {
+        const badge=document.getElementById('driverBadge'), dot=document.getElementById('driverStatusDot'), nameEl=document.getElementById('driverStatusName'), addrEl=document.getElementById('driverStatusAddr'), phoneEl=document.getElementById('driverStatusPhone'), removeBtn=document.getElementById('removeDriverBtn');
+        const editBtn = document.getElementById('driverEditLocationBtn');
+        if(driver.lat) {
+            badge.textContent=t('driverSet'); badge.className='badge-custom';
+            dot.className='status-dot set';
+            nameEl.innerHTML = `🚗 <span class="editable-field" data-field="name" data-type="driver" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;">${escapeHtml(driver.name||'Driver')}</span>`;
+            addrEl.innerHTML = `📍 <span class="editable-field" data-field="address" data-type="driver" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;">${escapeHtml(driver.address)}</span>`;
+            if(driver.phone) {
+                phoneEl.innerHTML = `📞 <span class="editable-field" data-field="phone" data-type="driver" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;">${escapeHtml(driver.phone)}</span>`;
+                phoneEl.className='driver-phone';
+            } else {
+                phoneEl.innerHTML = `📞 <span class="editable-field" data-field="phone" data-type="driver" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;opacity:0.5;">Click to add</span>`;
+                phoneEl.className='driver-phone';
+            }
+            removeBtn.disabled=false;
+            if(editingDriver) editBtn.classList.add('active'); else editBtn.classList.remove('active');
+        } else {
+            badge.textContent=t('driverNotSetBadge'); badge.className='badge-custom empty';
+            dot.className='status-dot not-set';
+            nameEl.textContent='🚗 No driver set';
+            addrEl.textContent='📍 No address set';
+            phoneEl.textContent=t('phonePlaceholder'); phoneEl.className='driver-phone empty-phone';
+            removeBtn.disabled=true;
+            editBtn.classList.remove('active');
+        }
+        if (!isReadOnly) attachEditableListeners();
+    }
+
+    function updatePassengerBadge() {
+        const badge=document.getElementById('passengerBadge');
+        if(badge){ badge.textContent=passengers.length; badge.className='badge-custom'+(passengers.length===0?' empty':''); }
+        const stopCount=document.getElementById('stopCount'); if(stopCount) stopCount.textContent=`${currentOrder.length||0} ${t('stops')}`;
+        updateStats();
+    }
+    function updateStats() {
+        const totalDist=parseFloat(document.getElementById('panelTotalDistance').textContent.replace(/[^0-9.]/g,''))||0;
+        document.getElementById('statStops').textContent=currentOrder.length||0;
+        document.getElementById('statDistance').textContent=totalDist.toFixed(1);
+        const estTime=Math.round(totalDist/30*60);
+        document.getElementById('statTime').textContent=estTime||0;
+        const fuel=(totalDist/100*8);
+        document.getElementById('statFuel').textContent=fuel.toFixed(1);
+    }
+
+    function updatePassengerUI() {
+        const container=document.getElementById('paxListContainer');
+        if(!container) return;
+        if(!passengers.length){ container.innerHTML=`<div class="text-center text-muted small py-1" style="opacity:0.4;">${t('noPassengers')}</div>`; return; }
+        container.innerHTML='';
+        passengers.forEach(p=>{
+            const div=document.createElement('div');
+            div.className='pax-item';
+            if (!isReadOnly) div.draggable=true;
+            div.dataset.id=p.id;
+            const orderIdx=currentOrder.indexOf(p.id);
+            const orderBadge=orderIdx!==-1?`<span class="order-badge">#${orderIdx+1}</span>`:'';
+            const info=document.createElement('div'); info.className='pax-info';
+            const nameRow=document.createElement('div'); nameRow.style.display='flex'; nameRow.style.alignItems='center'; nameRow.style.gap='4px'; nameRow.style.flexWrap='wrap';
+            
+            const nameSpan=document.createElement('span');
+            nameSpan.className='pax-name';
+            nameSpan.innerHTML = `${orderBadge} 🧑 <span class="editable-field" data-field="name" data-type="passenger" data-id="${p.id}" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;">${escapeHtml(p.name)}</span>`;
+            
+            const phoneSpan=document.createElement('span');
+            phoneSpan.className='pax-phone'+(p.phone?'':' empty-phone');
+            phoneSpan.innerHTML = p.phone ? `📞 <span class="editable-field" data-field="phone" data-type="passenger" data-id="${p.id}" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;">${escapeHtml(p.phone)}</span>` : `📞 <span class="editable-field" data-field="phone" data-type="passenger" data-id="${p.id}" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;opacity:0.5;">Click to add</span>`;
+            
+            const addrSpan=document.createElement('span');
+            addrSpan.className='pax-address';
+            addrSpan.innerHTML = `📍 <span class="editable-field" data-field="address" data-type="passenger" data-id="${p.id}" style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;">${escapeHtml(p.address)}</span>`;
+            
+            nameRow.appendChild(nameSpan); nameRow.appendChild(phoneSpan);
+            info.appendChild(nameRow); info.appendChild(addrSpan); div.appendChild(info);
+            
+            if (!isReadOnly) {
+                const actions=document.createElement('div'); actions.className='pax-actions';
+                const editLocBtn=document.createElement('button'); editLocBtn.className='btn-icon edit-location'; editLocBtn.innerHTML='<i class="bi bi-geo-alt"></i>'; editLocBtn.title='Edit location on map (drag marker)';
+                const isEditing = (editingPassengerId === p.id);
+                if(isEditing) editLocBtn.classList.add('active');
+                editLocBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleEditModeForPassenger(p.id); });
+                actions.appendChild(editLocBtn);
+                const delBtn=document.createElement('button'); delBtn.className='btn-icon delete'; delBtn.innerHTML='<i class="bi bi-x-lg"></i>';
+                delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); deletePassenger(p.id); });
+                actions.appendChild(delBtn);
+                div.appendChild(actions);
+            }
+            container.appendChild(div);
+        });
+        updatePassengerBadge();
+        if (!isReadOnly) attachEditableListeners();
+    }
+
+    // ----- INLINE EDITING FUNCTIONS (Sidebar) -----
+    function attachEditableListeners() {
+        if (isReadOnly) return;
+        document.querySelectorAll('.editable-field').forEach(el => {
+            const newEl = el.cloneNode(true);
+            el.parentNode.replaceChild(newEl, el);
+        });
+        
+        document.querySelectorAll('.editable-field').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (isReadOnly) return;
+                e.stopPropagation();
+                e.preventDefault();
+                
+                if (activeInput) {
+                    cancelActiveEdit();
+                }
+                
+                const field = this.dataset.field;
+                const type = this.dataset.type;
+                const id = this.dataset.id ? parseInt(this.dataset.id) : null;
+                
+                const computedStyle = window.getComputedStyle(this);
+                const fontSize = computedStyle.fontSize;
+                const fontWeight = computedStyle.fontWeight;
+                
+                let currentValue = this.textContent;
+                const emojiMatch = currentValue.match(/^[^\s]+\s/);
+                if (emojiMatch) {
+                    currentValue = currentValue.substring(emojiMatch[0].length);
+                }
+                if (currentValue.startsWith('📞 ')) {
+                    currentValue = currentValue.substring(3);
+                }
+                const displayText = this.textContent;
+                
+                activeEditData = {
+                    field: field,
+                    type: type,
+                    id: id,
+                    currentValue: currentValue,
+                    displayText: displayText,
+                    originalElement: this,
+                    fontSize: fontSize,
+                    fontWeight: fontWeight
+                };
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentValue;
+                input.className = 'form-control-sm-custom';
+                input.style.display = 'inline-block';
+                input.style.width = 'auto';
+                input.style.minWidth = '100px';
+                input.style.padding = '2px 8px';
+                input.style.margin = '-2px 0';
+                input.style.fontSize = fontSize;
+                input.style.fontWeight = fontWeight;
+                input.style.color = '#fff';
+                input.style.background = 'rgba(30,63,73,0.8)';
+                input.style.border = '1px solid var(--accent)';
+                input.style.borderRadius = '4px';
+                input.style.outline = 'none';
+                input.style.height = 'auto';
+                input.style.lineHeight = '1.4';
+                
+                activeInput = input;
+                isEditingField = true;
+                
+                const parent = this.parentNode;
+                parent.replaceChild(input, this);
+                
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 10);
+                
+                const saveEdit = function() {
+                    if (isReadOnly) return;
+                    if (!activeInput || !isEditingField) return;
+                    isEditingField = false;
+                    
+                    const newValue = activeInput.value.trim();
+                    const finalValue = newValue || activeEditData.currentValue;
+                    
+                    const newSpan = document.createElement('span');
+                    newSpan.className = 'editable-field';
+                    newSpan.dataset.field = activeEditData.field;
+                    newSpan.dataset.type = activeEditData.type;
+                    if(activeEditData.id !== null) newSpan.dataset.id = activeEditData.id;
+                    newSpan.style.cssText = 'cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;';
+                    newSpan.style.fontSize = activeEditData.fontSize;
+                    newSpan.style.fontWeight = activeEditData.fontWeight;
+                    
+                    const hasEmoji = activeEditData.displayText.match(/^[^\s]+\s/);
+                    if (hasEmoji && activeEditData.field === 'phone') {
+                        newSpan.textContent = finalValue ? '📞 ' + finalValue : '📞 Click to add';
+                    } else if (hasEmoji && activeEditData.field === 'name') {
+                        newSpan.textContent = '🧑 ' + finalValue;
+                    } else if (hasEmoji && activeEditData.field === 'address') {
+                        newSpan.textContent = '📍 ' + finalValue;
+                    } else {
+                        newSpan.textContent = finalValue;
+                    }
+                    
+                    const parent2 = activeInput.parentNode;
+                    if (parent2) {
+                        parent2.replaceChild(newSpan, activeInput);
+                    }
+                    
+                    if(finalValue !== activeEditData.currentValue) {
+                        applyEdit(activeEditData.field, activeEditData.type, activeEditData.id, finalValue);
+                    }
+                    
+                    activeInput = null;
+                    activeEditData = null;
+                    
+                    setTimeout(() => attachEditableListeners(), 50);
+                };
+                
+                const cancelEdit = function() {
+                    if (!activeInput || !isEditingField) return;
+                    isEditingField = false;
+                    
+                    const newSpan = document.createElement('span');
+                    newSpan.className = 'editable-field';
+                    newSpan.dataset.field = activeEditData.field;
+                    newSpan.dataset.type = activeEditData.type;
+                    if(activeEditData.id !== null) newSpan.dataset.id = activeEditData.id;
+                    newSpan.style.cssText = 'cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;';
+                    newSpan.style.fontSize = activeEditData.fontSize;
+                    newSpan.style.fontWeight = activeEditData.fontWeight;
+                    newSpan.textContent = activeEditData.displayText;
+                    
+                    const parent2 = activeInput.parentNode;
+                    if (parent2) {
+                        parent2.replaceChild(newSpan, activeInput);
+                    }
+                    
+                    activeInput = null;
+                    activeEditData = null;
+                    
+                    setTimeout(() => attachEditableListeners(), 50);
+                };
+                
+                input.addEventListener('blur', function(e) {
+                    if (isReadOnly) return;
+                    if (isEditingField && activeInput) {
+                        setTimeout(() => {
+                            if (isEditingField && activeInput) {
+                                saveEdit();
+                            }
+                        }, 150);
+                    }
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    if (isReadOnly) return;
+                    if(e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (isEditingField && activeInput) {
+                            saveEdit();
+                        }
+                    } else if(e.key === 'Escape') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (isEditingField && activeInput) {
+                            cancelEdit();
+                        }
+                    }
+                });
+            });
+        });
+    }
+
+    function cancelActiveEdit() {
+        if (isReadOnly) return;
+        if (activeInput && activeEditData && isEditingField) {
+            isEditingField = false;
+            
+            const newSpan = document.createElement('span');
+            newSpan.className = 'editable-field';
+            newSpan.dataset.field = activeEditData.field;
+            newSpan.dataset.type = activeEditData.type;
+            if(activeEditData.id !== null) newSpan.dataset.id = activeEditData.id;
+            newSpan.style.cssText = 'cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.2);padding:0 4px;';
+            newSpan.textContent = activeEditData.displayText;
+            
+            const parent2 = activeInput.parentNode;
+            if (parent2) {
+                parent2.replaceChild(newSpan, activeInput);
+            }
+            
+            activeInput = null;
+            activeEditData = null;
+            
+            setTimeout(() => attachEditableListeners(), 50);
+        }
+    }
+
+    function applyEdit(field, type, id, newValue) {
+        if (isReadOnly) return;
+        if(type === 'driver') {
+            if(field === 'name') {
+                driver.name = newValue || 'Driver';
+                document.getElementById('driverName').value = driver.name;
+                generateShareLink();
+            } else if(field === 'phone') {
+                driver.phone = newValue || '';
+                document.getElementById('driverPhone').value = driver.phone;
+                generateShareLink();
+            } else if(field === 'address') {
+                const oldAddress = driver.address;
+                driver.address = newValue || driver.address || 'No address';
+                document.getElementById('driverAddr').value = driver.address;
+                generateShareLink();
+                if(newValue && newValue.length > 2 && newValue !== oldAddress) {
+                    geocodeAddress(newValue).then(result => {
+                        if(result) {
+                            driver.lat = result.lat;
+                            driver.lng = result.lng;
+                            updateMarkersAndMap();
+                            clearRoutes();
+                            resetItinerary();
+                            updateDriverUI();
+                            saveStateSilent();
+                            generateShareLink();
+                        }
+                    });
+                }
+            }
+            updateDriverUI();
+            saveStateSilent();
+        } else if(type === 'passenger' && id !== null) {
+            const p = passengers.find(p => p.id === id);
+            if(p) {
+                if(field === 'name') {
+                    p.name = newValue || 'Passenger';
+                } else if(field === 'phone') {
+                    p.phone = newValue || '';
+                } else if(field === 'address') {
+                    const oldAddress = p.address;
+                    p.address = newValue || p.address || 'No address';
+                    if(newValue && newValue.length > 2 && newValue !== oldAddress) {
+                        geocodeAddress(newValue).then(result => {
+                            if(result) {
+                                p.lat = result.lat;
+                                p.lng = result.lng;
+                                currentOrder = [];
+                                cachedRouteData = null;
+                                clearRoutes();
+                                resetItinerary();
+                                updateMarkersAndMap();
+                                updatePassengerUI();
+                                saveStateSilent();
+                                generateShareLink();
+                            }
+                        });
+                    }
+                }
+                currentOrder = [];
+                cachedRouteData = null;
+                clearRoutes();
+                resetItinerary();
+                updatePassengerUI();
+                updateMarkersAndMap();
+                updatePassengerBadge();
+                saveStateSilent();
+                generateShareLink();
+            }
+        }
+    }
+
+    // ----- EDIT MODE FOR PASSENGER (drag marker) -----
+    function toggleEditModeForPassenger(id) {
+        if (isReadOnly) return;
+        const p=passengers.find(p=>p.id===id);
+        if(!p) return;
+        if(editingPassengerId===id) {
+            editingPassengerId=null; editMode=false;
+            setStatus(t('pickModeCancelled'),'success');
+            setTimeout(()=>setStatus(t('apiStatus')),1500);
+            updateMarkersAndMap(); updatePassengerUI();
+            return;
+        }
+        editMode=true; editingPassengerId=id;
+        setStatus(`✏️ Drag marker for ${p.name} to new location`,'edit-mode');
+        updateMarkersAndMap(); updatePassengerUI();
+        document.querySelectorAll('.pax-item').forEach(item=>{
+            if(parseInt(item.dataset.id)===id){ item.style.borderColor='var(--gold)'; item.style.borderWidth='2px'; } else { item.style.borderColor=''; item.style.borderWidth=''; }
+        });
+        if(map) map.setView([p.lat,p.lng],15);
+    }
+
+    // ----- MARKERS -----
+    function updateMarkersAndMap() {
+        if(!map) return;
+        markers.forEach(m=>map.removeLayer(m)); markers=[];
+        labelMarkers.forEach(m=>map.removeLayer(m)); labelMarkers=[];
+        if(driver.lat) {
+            const isEditing = editingDriver && !isReadOnly;
+            const cls = isEditing ? 'custom-marker-driver editing' : 'custom-marker-driver';
+            const icon=L.divIcon({ html:'🚗', className:`custom-marker ${cls}`, iconSize: isEditing ? [38,38] : [34,34], popupAnchor:[0,-17] });
+            const m=L.marker([driver.lat,driver.lng],{icon, draggable: isEditing}).addTo(map);
+            m.bindPopup(`<b>🚘 ${escapeHtml(driver.name||'Driver')}</b><br>${escapeHtml(driver.address)}${driver.phone?'<br>📞 '+escapeHtml(driver.phone):''}${isEditing?'<br><i>✏️ Drag to move</i>':''}`);
+            if(isEditing) {
+                m.on('dragend', function(e) {
+                    if (isReadOnly) return;
+                    const pos=e.target.getLatLng();
+                    updateDriverLocation(pos.lat, pos.lng);
+                    editingDriver = false;
+                    updateMarkersAndMap(); updateDriverUI();
+                });
+            }
+            markers.push(m);
+            const labelDiv=document.createElement('div'); labelDiv.className='marker-label'; labelDiv.textContent=driver.name||'Driver';
+            const labelIcon=L.divIcon({ html:labelDiv.outerHTML, className:'', iconSize:[80,20], iconAnchor:[40,0] });
+            const labelMarker=L.marker([driver.lat-0.0012, driver.lng], {icon:labelIcon, interactive:false}).addTo(map);
+            labelMarkers.push(labelMarker);
+        }
+        passengers.forEach(p=>{
+            const ordered=currentOrder.includes(p.id);
+            const num=currentOrder.indexOf(p.id);
+            const label=ordered?`${num+1}`:'🧑';
+            const isEditing=(editingPassengerId===p.id) && !isReadOnly;
+            const cls=isEditing?'custom-marker-pax editing':(ordered?'custom-marker-pax-ordered':'custom-marker-pax');
+            const icon=L.divIcon({ html:label, className:`custom-marker ${cls}`, iconSize:[28,28], popupAnchor:[0,-14] });
+            const m=L.marker([p.lat,p.lng], {icon, draggable: isEditing}).addTo(map);
+            m.bindPopup(`<b>🧑 ${escapeHtml(p.name)}</b>${ordered?`<br>Stop #${num+1}`:''}${p.phone?'<br>📞 '+escapeHtml(p.phone):''}<br>📌 ${escapeHtml(p.address)}${isEditing?'<br><i>✏️ Drag to move</i>':''}`);
+            if(isEditing) {
+                m.on('dragend', function(e) {
+                    if (isReadOnly) return;
+                    const pos=e.target.getLatLng();
+                    updatePassengerLocation(editingPassengerId, pos.lat, pos.lng);
+                    editingPassengerId=null; editMode=false;
+                    document.querySelectorAll('.pax-item').forEach(item=>{ item.style.borderColor=''; item.style.borderWidth=''; });
+                    updateMarkersAndMap(); updatePassengerUI();
+                });
+            }
+            markers.push(m);
+            const labelDiv=document.createElement('div'); labelDiv.className='marker-label'; labelDiv.textContent=p.name;
+            const labelIcon=L.divIcon({ html:labelDiv.outerHTML, className:'', iconSize:[80,20], iconAnchor:[40,0] });
+            const labelMarker=L.marker([p.lat-0.0012, p.lng], {icon:labelIcon, interactive:false}).addTo(map);
+            labelMarkers.push(labelMarker);
+        });
+        if(driver.lat && passengers.length) {
+            const bounds=[[driver.lat,driver.lng], ...passengers.map(p=>[p.lat,p.lng])];
+            map.fitBounds(bounds, {padding:[50,50]});
+        } else if(driver.lat) {
+            map.setView([driver.lat,driver.lng],14);
+        }
+    }
+    async function updatePassengerLocation(id,lat,lng,newAddress=null) {
+        if (isReadOnly) return;
+        const p=passengers.find(p=>p.id===id);
+        if(!p) return;
+        p.lat=lat; p.lng=lng;
+        p.address = newAddress || await reverseGeocode(lat,lng);
+        currentOrder=[]; cachedRouteData=null;
+        updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
+        setStatus(`📍 Location updated for ${p.name}`,'success');
+        saveStateSilent();
+        generateShareLink();
+    }
+
+    // ----- PICK MODE -----
+    function showPickMode(mode) {
+        if (isReadOnly) return;
+        pickMode=mode;
+        const indicator=document.getElementById('pickIndicator');
+        const text=document.getElementById('pickModeText');
+        text.textContent=mode==='driver'?'📍 Tap map to set DRIVER':'📍 Tap map to add PASSENGER';
+        document.getElementById('pickDriverBtn')?.classList.toggle('active', mode==='driver');
+        document.getElementById('pickPassengerBtn')?.classList.toggle('active', mode==='passenger');
+        indicator.classList.add('show');
+        setStatus(`📍 ${mode==='driver'?'Set driver':'Add passenger'} location on map`,'pick-mode');
+        if(map) {
+            if(tempMarker) map.removeLayer(tempMarker);
+            tempMarker=L.marker(map.getCenter(), { icon:L.divIcon({ html:'📍', className:'', iconSize:[28,28] }) }).addTo(map);
+        }
+        document.getElementById('searchInput').focus();
+    }
+    function cancelPickMode() {
+        pickMode=null; document.getElementById('pickIndicator').classList.remove('show');
+        document.getElementById('pickDriverBtn')?.classList.remove('active');
+        document.getElementById('pickPassengerBtn')?.classList.remove('active');
+        if(tempMarker && map){ map.removeLayer(tempMarker); tempMarker=null; }
+        setStatus(t('pickModeCancelled'),'success');
+        setTimeout(()=>setStatus(t('apiStatus')),1500);
+    }
+
+    // ----- ROUTE -----
+    function clearRoutes(){ routeLayers.forEach(l=>map&&map.removeLayer(l)); routeLayers=[]; }
+    function resetItinerary() {
+        document.getElementById('panelSteps').innerHTML=`<div class="itinerary-empty"><i class="bi bi-map"></i><span>${t('balloonEmpty')}</span></div>`;
+        document.getElementById('panelTotalDistance').innerHTML=t('totalDistance');
+        document.getElementById('stopCount').textContent=`0 ${t('stops')}`;
+        updateStats();
+    }
+    async function computeOptimalOrder() {
+        if(!driver.lat) throw new Error('Driver not set');
+        if(!passengers.length) throw new Error('No passengers');
+        const nodes=[{...driver,type:'driver',id:'driver'}, ...passengers.map(p=>({...p,type:'passenger'}))];
+        const n=nodes.length;
+        const dist=Array.from({length:n},()=>Array(n).fill(0));
+        for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){ const d=haversine(nodes[i].lat,nodes[i].lng,nodes[j].lat,nodes[j].lng); dist[i][j]=d; dist[j][i]=d; }
+        let visited=Array(n).fill(false); visited[0]=true;
+        let order=[0], current=0, total=0, segs=[];
+        while(order.length<n){
+            let best=-1, bestD=Infinity;
+            for(let i=0;i<n;i++) if(!visited[i] && dist[current][i]<bestD){ bestD=dist[current][i]; best=i; }
+            total+=bestD; segs.push(bestD);
+            visited[best]=true; order.push(best); current=best;
+        }
+        return { orderedNodes:order.map(i=>nodes[i]), totalDistance:total, segmentDistances:segs };
+    }
+    async function optimizeAndRoute() {
+        if(!driver.lat){ setStatus('⚠️ Set driver first','error'); return; }
+        if(!passengers.length){ setStatus('⚠️ Add passengers','error'); return; }
+        setStatus(t('optimizing'));
+        try {
+            const {orderedNodes,totalDistance,segmentDistances}=await computeOptimalOrder();
+            currentOrder=orderedNodes.filter(n=>n.type==='passenger').map(n=>n.id);
+            cachedRouteData={orderedNodes,totalDistance,segmentDistances};
+            drawRoute(orderedNodes,segmentDistances);
+            updateItineraryPanel(orderedNodes,totalDistance,segmentDistances);
+            updatePassengerUI(); updateMarkersAndMap(); updatePassengerBadge();
+            setStatus(t('routeOptimized'),'success');
+            if (!isReadOnly) {
+                saveStateSilent();
+                generateShareLink();
+            }
+        } catch(e){ setStatus(t('optimizationFailed'),'error'); }
+    }
+    function drawRoute(nodes,segs) {
+        clearRoutes();
+        if(!map) return;
+        const colors=['#4dd0e1','#4db6ac','#66bb6a','#aed581','#ffd54f'];
+        for(let i=0;i<nodes.length-1;i++){
+            const from=nodes[i], to=nodes[i+1];
+            const pts=[[from.lat,from.lng],[to.lat,to.lng]];
+            const c=colors[i%colors.length];
+            const line=L.polyline(pts,{color:c,weight:4,opacity:0.8}).addTo(map);
+            routeLayers.push(line);
+            const glow=L.polyline(pts,{color:c,weight:12,opacity:0.1}).addTo(map);
+            routeLayers.push(glow);
+        }
+    }
+    
+    function updateItineraryPanel(nodes, total, segs) {
+        const stepsDiv = document.getElementById('panelSteps');
+        if (!stepsDiv) return;
+        let html = '<div class="itinerary-list">';
+        
+        let driverPhoneHtml = nodes[0].phone ? 
+            `<span class="step-phone" style="font-size:0.5rem;opacity:0.5;background:rgba(255,255,255,0.06);padding:0 8px;border-radius:20px;color:#fff;">${escapeHtml(nodes[0].phone)}</span>` : 
+            `<span class="step-phone empty-phone" style="font-size:0.5rem;opacity:0.3;background:rgba(255,255,255,0.06);padding:0 8px;border-radius:20px;color:#fff;font-style:italic;">${t('phonePlaceholder')}</span>`;
+        
+        html += `<div class="itinerary-item" data-step="0" data-type="driver">
+            <span class="step-number driver-step">🚗</span>
+            <div class="step-content">
+                <span class="step-name">${escapeHtml(nodes[0].name || 'Driver')}</span>
+                ${driverPhoneHtml}
+                <span class="step-address">${escapeHtml(nodes[0].address)}</span>
+                <span class="step-dist"></span>
+            </div>
+        </div>`;
+        
+        for (let i = 1; i < nodes.length; i++) {
+            const p = nodes[i];
+            let phoneHtml = p.phone ? 
+                `<span class="step-phone" style="font-size:0.5rem;opacity:0.5;background:rgba(255,255,255,0.06);padding:0 8px;border-radius:20px;color:#fff;">${escapeHtml(p.phone)}</span>` : 
+                `<span class="step-phone empty-phone" style="font-size:0.5rem;opacity:0.3;background:rgba(255,255,255,0.06);padding:0 8px;border-radius:20px;color:#fff;font-style:italic;">${t('phonePlaceholder')}</span>`;
+            const dist = segs[i - 1] || 0;
+            html += `<div class="itinerary-item" data-step="${i}" data-type="passenger" data-id="${p.id}">
+                <span class="step-number">${i}</span>
+                <div class="step-content">
+                    <span class="step-name">${escapeHtml(p.name)}</span>
+                    ${phoneHtml}
+                    <span class="step-address">${escapeHtml(p.address)}</span>
+                    <span class="step-dist">${dist.toFixed(1)}km</span>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+        stepsDiv.innerHTML = html;
+        document.getElementById('panelTotalDistance').innerHTML = `${t('total')} ${total.toFixed(1)} km`;
+        document.getElementById('stopCount').textContent = `${nodes.length - 1} ${t('stops')}`;
+        updateStats();
+    }
+
+    function getOrderedNodesForPanel() {
+        if(!driver.lat || !currentOrder.length) return null;
+        const nodes=[{...driver,type:'driver',id:'driver'}];
+        for(let id of currentOrder){ const p=passengers.find(p=>p.id===id); if(p) nodes.push({...p,type:'passenger'}); }
+        return nodes;
+    }
+
+    // ----- EXPORT/IMPORT FULL DATA -----
+    function exportFullData() {
+        try {
+            const data={version:'2.0', exportedAt:new Date().toISOString(), driver, passengers, currentOrder, nextId, cachedRouteData};
+            const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+            const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`routmap_data_${Date.now()}.json`; a.click(); URL.revokeObjectURL(url);
+            setStatus(t('dataExported'),'success'); setTimeout(()=>setStatus(t('apiStatus')),1500);
+        } catch(e){ setStatus('❌ Export failed','error'); }
+    }
+    function importFullData(file) {
+        if (isReadOnly) return;
+        const reader=new FileReader();
+        reader.onload=function(e){
+            try {
+                const data=JSON.parse(e.target.result);
+                if(!data.driver || !data.passengers){ setStatus('⚠️ Invalid data format','error'); return; }
+                driver={...data.driver}; passengers=data.passengers.map(p=>({...p})); currentOrder=data.currentOrder||[]; nextId=data.nextId||1; cachedRouteData=data.cachedRouteData||null;
+                document.getElementById('driverName').value=driver.name||''; document.getElementById('driverAddr').value=driver.address||''; document.getElementById('driverPhone').value=driver.phone||'';
+                updateDriverUI(); updatePassengerUI(); updateMarkersAndMap(); updatePassengerBadge(); clearRoutes();
+                if(cachedRouteData && cachedRouteData.orderedNodes){ const {orderedNodes,totalDistance,segmentDistances}=cachedRouteData; drawRoute(orderedNodes,segmentDistances); updateItineraryPanel(orderedNodes,totalDistance,segmentDistances); } else resetItinerary();
+                setStatus(t('dataImported'),'success'); setTimeout(()=>setStatus(t('apiStatus')),1500);
+                saveStateSilent();
+                generateShareLink();
+            } catch(err){ setStatus('❌ Import failed: '+err.message,'error'); }
+        };
+        reader.readAsText(file);
+    }
+    function saveStateSilent() { 
+        if (isReadOnly) return;
+        try { const state={driver,passengers,currentOrder,nextId,cachedRouteData,timestamp:Date.now()}; localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); } catch(e){} 
+    }
+    function saveState() { 
+        if (isReadOnly) return;
+        saveStateSilent(); 
+        setStatus(t('stateSaved'),'success'); 
+        setTimeout(()=>setStatus(t('apiStatus')),1500); 
+    }
+    function loadState() {
+        if (isReadOnly) return;
+        try {
+            const raw=localStorage.getItem(STORAGE_KEY);
+            if(!raw){ setStatus(t('noState'),''); return; }
+            const state=JSON.parse(raw);
+            if(!state.driver || !state.passengers){ setStatus('⚠️ Invalid state','error'); return; }
+            driver=state.driver; if(driver.lat){ document.getElementById('driverName').value=driver.name||''; document.getElementById('driverAddr').value=driver.address||''; document.getElementById('driverPhone').value=driver.phone||''; }
+            passengers=state.passengers||[]; nextId=state.nextId||1; currentOrder=state.currentOrder||[]; cachedRouteData=state.cachedRouteData||null;
+            updateDriverUI(); updatePassengerUI(); updateMarkersAndMap(); updatePassengerBadge();
+            if(cachedRouteData && cachedRouteData.orderedNodes){ const {orderedNodes,totalDistance,segmentDistances}=cachedRouteData; drawRoute(orderedNodes,segmentDistances); updateItineraryPanel(orderedNodes,totalDistance,segmentDistances); } else { clearRoutes(); resetItinerary(); }
+            setStatus(t('stateRestored'),'success'); setTimeout(()=>setStatus(t('apiStatus')),1500);
+            generateShareLink();
+        } catch(e){ setStatus('⚠️ Load failed','error'); }
+    }
+
+    // ----- EXPORT CSV/GPX -----
+    function exportCSV() {
+        if(!passengers.length){ setStatus('⚠️ No passengers to export','error'); return; }
+        let csv='Name,Address,Phone,Latitude,Longitude\n';
+        passengers.forEach(p=>{ csv+=`"${p.name}","${p.address}","${p.phone||''}",${p.lat||''},${p.lng||''}\n`; });
+        const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`passengers-${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
+        setStatus(t('csvExported'),'success'); setTimeout(()=>setStatus(t('apiStatus')),1500);
+    }
+    function exportGPX() {
+        if(!currentOrder.length || !driver.lat){ setStatus('⚠️ No route to export as GPX','error'); return; }
+        const nodes=getOrderedNodesForPanel(); if(!nodes) return;
+        let gpx=`<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="RoutMap" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Route ${new Date().toLocaleDateString()}</name><trkseg>`;
+        nodes.forEach((node,i)=>{ const label=i===0?'Start':`Stop ${i}`; gpx+=`<trkpt lat="${node.lat}" lon="${node.lng}"><name>${label}: ${escapeHtml(node.name||'Unnamed')}</name><desc>${escapeHtml(node.address)}</desc></trkpt>`; });
+        gpx+=`</trkseg></trk></gpx>`;
+        const blob=new Blob([gpx],{type:'application/gpx+xml'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`route-${Date.now()}.gpx`; a.click(); URL.revokeObjectURL(url);
+        setStatus(t('gpxExported'),'success'); setTimeout(()=>setStatus(t('apiStatus')),1500);
+    }
+
+    // ----- EXPORT/PRINT ROUTE -----
+    function exportRoute() {
+        if(!currentOrder.length){ setStatus('⚠️ No route to export!','error'); return; }
+        const nodes=getOrderedNodesForPanel(); if(!nodes) return;
+        let summary='=== ROUTEMAP - EXPORT ===\nDate: '+new Date().toLocaleString()+'\nTotal Distance: '+document.getElementById('panelTotalDistance').textContent+'\n\nSTOPS:\n';
+        nodes.forEach((node,i)=>{ const label=i===0?'🚗 START':`📍 STOP ${i}`; summary+=`${label}: ${node.name||'Unnamed'}\n  Address: ${node.address}\n`; if(node.phone) summary+=`  Phone: ${node.phone}\n`; summary+='\n'; });
+        const blob=new Blob([summary],{type:'text/plain'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`routemap-export-${Date.now()}.txt`; a.click(); URL.revokeObjectURL(url);
+        setStatus('✅ Route exported!','success');
+    }
+    function printRoute() { if(!currentOrder.length){ setStatus('⚠️ No route to print!','error'); return; } window.print(); }
+    function clearRoute() { 
+        if (isReadOnly) return;
+        if(!currentOrder.length && !passengers.length) return; 
+        if(!confirm('Clear the current route and all passengers?')) return; 
+        passengers=[]; currentOrder=[]; cachedRouteData=null; 
+        clearRoutes(); resetItinerary(); updatePassengerUI(); updateMarkersAndMap(); updatePassengerBadge(); 
+        setStatus('🗑️ Route cleared',''); 
+        saveStateSilent(); 
+        generateShareLink(); 
+    }
+
+    // ----- PNG/PDF DOWNLOAD -----
+    async function downloadPNG() {
+        try { setStatus(t('generatingPNG')); if(map){ map.invalidateSize(); await sleep(300); } const container=document.getElementById('mapContainer'); const canvas=await html2canvas(container,{scale:2.5,useCORS:true,backgroundColor:'#0a1419',logging:false,width:container.scrollWidth,height:container.scrollHeight}); const rightPanel=document.getElementById('rightPanel'); const panelCanvas=await html2canvas(rightPanel,{scale:2.5,useCORS:true,backgroundColor:'#0a1419',logging:false}); const combined=document.createElement('canvas'); const totalWidth=canvas.width+panelCanvas.width; const totalHeight=Math.max(canvas.height,panelCanvas.height); combined.width=totalWidth; combined.height=totalHeight; const ctx=combined.getContext('2d'); ctx.fillStyle='#0a1419'; ctx.fillRect(0,0,totalWidth,totalHeight); ctx.drawImage(canvas,0,0); ctx.drawImage(panelCanvas,canvas.width,0); const link=document.createElement('a'); link.download='routemap.png'; link.href=combined.toDataURL('image/png'); link.click(); setStatus(t('pngDownloaded'),'success'); setTimeout(()=>setStatus(t('apiStatus')),2500); } catch(e){ setStatus('❌ Download failed','error'); }
+    }
+    async function downloadPDF() {
+        try { setStatus(t('generatingPDF')); if(map){ map.invalidateSize(); await sleep(300); } const container=document.getElementById('mapContainer'); const canvas=await html2canvas(container,{scale:2.5,useCORS:true,backgroundColor:'#0a1419',logging:false,width:container.scrollWidth,height:container.scrollHeight}); const rightPanel=document.getElementById('rightPanel'); const panelCanvas=await html2canvas(rightPanel,{scale:2.5,useCORS:true,backgroundColor:'#0a1419',logging:false}); const combined=document.createElement('canvas'); const totalWidth=canvas.width+panelCanvas.width; const totalHeight=Math.max(canvas.height,panelCanvas.height); combined.width=totalWidth; combined.height=totalHeight; const ctx=combined.getContext('2d'); ctx.fillStyle='#0a1419'; ctx.fillRect(0,0,totalWidth,totalHeight); ctx.drawImage(canvas,0,0); ctx.drawImage(panelCanvas,canvas.width,0); const imgData=combined.toDataURL('image/png'); const {jsPDF}=window.jspdf; const pdf=new jsPDF('landscape','mm','a4'); const imgW=297; const imgH=(combined.height*imgW)/combined.width; pdf.addImage(imgData,'PNG',0,0,imgW,imgH); pdf.save('routemap.pdf'); setStatus(t('pdfDownloaded'),'success'); setTimeout(()=>setStatus(t('apiStatus')),2500); } catch(e){ setStatus('❌ PDF failed','error'); }
+    }
+
+    // ----- BULK MODAL -----
+    function showBulkModal(){ 
+        if (isReadOnly) return;
+        document.getElementById('bulkModal').classList.add('show'); 
+        document.getElementById('bulkTextarea').value=''; 
+        document.getElementById('bulkTextarea').focus(); 
+    }
+    async function processBulkAdd() {
+        if (isReadOnly) return;
+        const text=document.getElementById('bulkTextarea').value.trim();
+        if(!text){ setStatus('⚠️ Enter at least one passenger','error'); return; }
+        const lines=text.split('\n').filter(l=>l.trim()); let added=0, failed=0;
+        for(let line of lines){
+            const parts=line.split(',').map(s=>s.trim());
+            if(parts.length<2){ failed++; continue; }
+            const name=parts[0], address=parts[1], phone=parts[2]||'';
+            if(!name||!address){ failed++; continue; }
+            try { const result=await geocodeAddress(address); if(result){ addPassengerFromCoords(result.lat,result.lng,address,name,phone); added++; } else failed++; } catch(e){ failed++; }
+        }
+        document.getElementById('bulkModal').classList.remove('show');
+        if(added>0){ setStatus(t('bulkAdded',{count:added}),'success'); if(failed>0) setStatus(`⚠️ ${added} added, ${failed} failed`,'error'); } else setStatus('⚠️ No passengers could be added. Check addresses.','error');
+    }
+
+    // ----- HISTORY -----
+    function showHistory() {
+        const container=document.getElementById('historyList');
+        if(!routeHistory.length){ container.innerHTML=`<p style="color:var(--text-muted);font-size:0.75rem;">${t('noHistory')}</p>`; }
+        else {
+            let html='';
+            routeHistory.forEach(entry=>{
+                html+=`<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;border-left:3px solid var(--accent);" onclick="restoreFromHistory(${entry.id})"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;color:var(--text-primary);font-size:0.8rem;">${entry.driver.name||'Driver'} - ${entry.stops} stops</span><span style="color:var(--text-muted);font-size:0.6rem;">${entry.timestamp}</span></div><div style="color:var(--text-muted);font-size:0.6rem;">${entry.totalDistance}</div></div>`;
+            });
+            container.innerHTML=html;
+        }
+        document.getElementById('historyModal').classList.add('show');
+    }
+
+    // ----- LANGUAGE -----
+    function updateLang(lang) {
+        currentLang=lang;
+        document.querySelectorAll('.lang-group .btn-lang').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+        document.getElementById('apiStatus').textContent=t('apiStatus');
+        document.getElementById('searchInput').placeholder=t('searchPlaceholder');
+        document.querySelector('#clearRouteBtn').textContent='🗑️ '+t('clearRoute');
+        document.querySelector('#exportRouteBtn').innerHTML='<i class="bi bi-download"></i> '+t('exportRoute');
+        document.querySelector('#printRouteBtn').innerHTML='<i class="bi bi-printer"></i> '+t('printRoute');
+        document.querySelector('.panel-header h5 span:first-child').innerHTML='<i class="bi bi-list-ul me-1"></i> '+t('optimalRoute');
+        updateDriverUI(); updatePassengerUI();
+        if(cachedRouteData){ const {orderedNodes,totalDistance,segmentDistances}=cachedRouteData; updateItineraryPanel(orderedNodes,totalDistance,segmentDistances); updatePassengerBadge(); } else resetItinerary();
+    }
+
+    // ----- EVENTS -----
+    function bindEvents() {
+        document.getElementById('setDriverBtn').addEventListener('click', setDriver);
+        document.getElementById('pickDriverBtn').addEventListener('click', ()=>pickMode==='driver'?cancelPickMode():showPickMode('driver'));
+        document.getElementById('removeDriverBtn').addEventListener('click', removeDriver);
+        document.getElementById('driverEditLocationBtn').addEventListener('click', toggleDriverEditMode);
+        document.getElementById('addPassengerBtn').addEventListener('click', addPassengerFromUI);
+        document.getElementById('pickPassengerBtn').addEventListener('click', ()=>pickMode==='passenger'?cancelPickMode():showPickMode('passenger'));
+        document.getElementById('clearBtn').addEventListener('click', clearAllPassengers);
+        document.getElementById('optimizeBtn').addEventListener('click', optimizeAndRoute);
+        document.getElementById('downloadMapBtn').addEventListener('click', downloadPNG);
+        document.getElementById('printMapBtn').addEventListener('click', downloadPDF);
+        document.getElementById('cancelPickBtn').addEventListener('click', cancelPickMode);
+        document.getElementById('clearRouteBtn').addEventListener('click', clearRoute);
+        document.getElementById('exportRouteBtn').addEventListener('click', exportRoute);
+        document.getElementById('printRouteBtn').addEventListener('click', printRoute);
+        document.getElementById('saveStateBtn').addEventListener('click', saveState);
+        document.getElementById('loadStateBtn').addEventListener('click', loadState);
+        document.getElementById('bulkAddBtn').addEventListener('click', showBulkModal);
+        document.getElementById('bulkAddConfirm').addEventListener('click', processBulkAdd);
+        document.getElementById('bulkCancel').addEventListener('click', ()=>{ document.getElementById('bulkModal').classList.remove('show'); });
+        document.getElementById('historyBtn').addEventListener('click', showHistory);
+        document.getElementById('historyCancel').addEventListener('click', ()=>{ document.getElementById('historyModal').classList.remove('show'); });
+        document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{ clearHistory(); showHistory(); });
+        document.getElementById('saveRouteBtn').addEventListener('click', addToHistory);
+        document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+        document.getElementById('exportGpxBtn').addEventListener('click', exportGPX);
+        document.getElementById('exportDataBtn').addEventListener('click', exportFullData);
+        document.getElementById('importDataBtn').addEventListener('click', ()=>{ if (!isReadOnly) document.getElementById('importFileInput').click(); });
+        document.getElementById('importFileInput').addEventListener('change', function(e){ if(this.files && this.files[0]){ importFullData(this.files[0]); this.value=''; } });
+        document.getElementById('copyShareLinkBtn').addEventListener('click', copyShareLink);
+        document.getElementById('whatsappShareBtn').addEventListener('click', shareOnWhatsApp);
+        document.getElementById('shareNativeBtn').addEventListener('click', shareNative);
+        
+        document.getElementById('driverAddr').addEventListener('keypress', e=>{ if(e.key==='Enter') setDriver(); });
+        document.getElementById('driverPhone').addEventListener('keypress', e=>{ if(e.key==='Enter') setDriver(); });
+        document.getElementById('paxAddr').addEventListener('keypress', e=>{ if(e.key==='Enter') addPassengerFromUI(); });
+        document.getElementById('paxName').addEventListener('keypress', e=>{ if(e.key==='Enter') addPassengerFromUI(); });
+        document.getElementById('paxPhone').addEventListener('keypress', e=>{ if(e.key==='Enter') addPassengerFromUI(); });
+        document.querySelectorAll('.lang-group .btn-lang').forEach(b=>b.addEventListener('click', ()=>updateLang(b.dataset.lang)));
+        document.querySelectorAll('.bulk-modal-overlay').forEach(overlay=>{ overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.classList.remove('show'); }); });
+    }
+
+    // ----- INIT -----
+    function init() {
+        initMap();
+        bindEvents();
+        updateDriverUI();
+        updatePassengerBadge();
+        updateLang('en');
+        resetItinerary();
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+    window.addEventListener('resize', ()=>{ if(map) setTimeout(()=>map.invalidateSize(),150); });
+</script>
+</body>
+</html>
