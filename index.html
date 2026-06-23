@@ -352,6 +352,7 @@
         .status-bar.success { background:rgba(26,61,42,0.5); color:#7ad0a8; border-color:var(--accent); }
         .status-bar.pick-mode { background:rgba(61,58,26,0.5); color:#f5d742; border-color:#f5d742; }
         .status-bar.readonly { background:rgba(61,61,61,0.5); color:#aaa; border-color:rgba(255,255,255,0.1); }
+        .status-bar.edit-mode { background:rgba(245,184,122,0.15); color:var(--gold); border-color:var(--gold); }
         .stats-badge {
             display:flex; gap:10px; padding:3px 8px; background:rgba(79,191,139,0.06);
             border-radius:30px; flex-wrap:wrap; border:1px solid rgba(79,191,139,0.06);
@@ -631,11 +632,282 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Search highlight */
         .search-highlight {
             background: rgba(245, 184, 122, 0.25);
             padding: 0 2px;
             border-radius: 2px;
+        }
+
+        .history-delete-btn {
+            background: rgba(246, 123, 123, 0.15);
+            border: none;
+            color: var(--danger);
+            border-radius: 30px;
+            padding: 2px 8px;
+            font-size: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            margin-left: 4px;
+            flex-shrink: 0;
+        }
+        .history-delete-btn:hover {
+            background: var(--danger);
+            color: var(--bg-primary);
+            transform: scale(1.05);
+        }
+
+        .history-date-group {
+            margin-bottom: 8px;
+            border: 1px solid rgba(79,191,139,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .history-date-header {
+            background: rgba(79,191,139,0.06);
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+            user-select: none;
+        }
+        .history-date-header:hover {
+            background: rgba(79,191,139,0.12);
+        }
+        .history-date-header .date-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+        }
+        .history-date-header .date-count {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.05);
+            padding: 2px 10px;
+            border-radius: 20px;
+        }
+        .history-date-header .date-arrow {
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            transition: transform 0.3s ease;
+        }
+        .history-date-header .date-arrow.collapsed {
+            transform: rotate(-90deg);
+        }
+        .history-entries-container {
+            padding: 4px 8px;
+            transition: all 0.3s ease;
+        }
+        .history-entries-container.collapsed {
+            display: none;
+        }
+
+        .popup-copy-btn {
+            background: rgba(79,191,139,0.15);
+            border: 1px solid rgba(79,191,139,0.15);
+            color: var(--accent);
+            border-radius: 30px;
+            padding: 2px 10px;
+            font-size: 0.55rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 4px;
+            width: 100%;
+        }
+        .popup-copy-btn:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        .popup-copy-btn.copied {
+            background: var(--gold);
+            color: var(--bg-primary);
+            border-color: var(--gold);
+        }
+        .popup-content {
+            font-size: 0.7rem;
+            line-height: 1.6;
+        }
+        .popup-content .label {
+            opacity: 0.5;
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .popup-content .value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .history-select-all {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 30px;
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .history-select-all:hover {
+            background: rgba(255,255,255,0.06);
+        }
+        .history-select-all input[type="checkbox"] {
+            accent-color: var(--accent);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+        
+        .history-selection-counter {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-radius: 30px;
+            padding: 2px 12px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            display: none;
+            align-items: center;
+            gap: 4px;
+        }
+        .history-selection-counter.show {
+            display: inline-flex;
+        }
+        
+        .history-date-header .date-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-date-header .date-clear-btn {
+            background: rgba(246, 123, 123, 0.12);
+            border: none;
+            color: var(--danger);
+            border-radius: 30px;
+            padding: 2px 10px;
+            font-size: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+        .history-date-header .date-clear-btn:hover {
+            background: var(--danger);
+            color: var(--bg-primary);
+            transform: scale(1.05);
+        }
+        
+        .history-entry-checkbox {
+            accent-color: var(--accent);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-right: 6px;
+        }
+        .history-entry-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+        .history-entry-wrapper:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        .history-entry-wrapper.selected {
+            background: rgba(79,191,139,0.08);
+            border: 1px solid rgba(79,191,139,0.15);
+        }
+        .history-entry-content {
+            flex: 1;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+        }
+        .history-entry-content:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .history-bulk-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 4px;
+            border-top: 1px solid rgba(79,191,139,0.06);
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .history-bulk-actions .btn-bulk-delete {
+            background: rgba(246, 123, 123, 0.15);
+            border: none;
+            color: var(--danger);
+            border-radius: 30px;
+            padding: 4px 14px;
+            font-size: 0.55rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: none;
+            align-items: center;
+            gap: 4px;
+        }
+        .history-bulk-actions .btn-bulk-delete:hover {
+            background: var(--danger);
+            color: var(--bg-primary);
+            transform: scale(1.05);
+        }
+        .history-bulk-actions .btn-bulk-delete.show {
+            display: inline-flex;
+        }
+        .history-bulk-actions .btn-bulk-delete:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .history-bulk-actions .selection-info {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            display: none;
+        }
+        .history-bulk-actions .selection-info.show {
+            display: inline-block;
+        }
+        
+        .modal-actions-history {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-actions-history .left-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .modal-actions-history .right-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .history-badge-count {
+            background: rgba(79,191,139,0.15);
+            color: var(--accent);
+            border-radius: 30px;
+            padding: 1px 10px;
+            font-size: 0.5rem;
+            font-weight: 600;
         }
         
         @media (max-width:1400px) { .right-panel { width:420px; min-width:420px; } .sidebar { width:340px; min-width:340px; } }
@@ -648,6 +920,21 @@
             .map-container { flex:1; min-height:30vh; }
             .search-container { width:calc(100% - 20px); top:8px; }
             .share-link-container input { font-size: 0.4rem; min-width: 40px; }
+            .history-date-header {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .history-date-header .date-actions {
+                flex-wrap: wrap;
+            }
+            .modal-actions-history {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .modal-actions-history .left-actions,
+            .modal-actions-history .right-actions {
+                justify-content: center;
+            }
         }
         .itinerary-item .step-content * { color:#ffffff !important; opacity:1 !important; }
         .itinerary-item .step-dist { color:var(--accent) !important; }
@@ -820,19 +1107,42 @@
 <!-- HISTORY MODAL -->
 <div class="bulk-modal-overlay" id="historyModal">
     <div class="bulk-modal">
-        <h4><i class="bi bi-clock-history me-2"></i> Route History</h4>
-        <!-- Search bar for history -->
+        <h4><i class="bi bi-clock-history me-2"></i> Route History <span class="history-badge-count" id="historyTotalCount">0</span></h4>
         <div class="search-icon-wrapper" style="margin: 0.5rem 0;">
             <span class="search-icon-inside"><i class="bi bi-search"></i></span>
             <input type="text" id="historySearchInput" class="form-control-sm-custom search-input" placeholder="🔍 Search routes by name, address, or date..." autocomplete="off" style="font-size:0.7rem;">
             <button class="clear-search" id="clearHistorySearch">✕</button>
         </div>
-        <div id="historyList" style="max-height:250px;overflow-y:auto;margin:0.5rem 0;">
+        
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+            <label class="history-select-all">
+                <input type="checkbox" id="selectAllHistory"> Select All
+            </label>
+            <span class="history-selection-counter" id="selectionCounter">
+                <i class="bi bi-check-circle"></i> <span id="selectedCount">0</span> selected
+            </span>
+        </div>
+        
+        <div id="historyList" style="max-height:280px;overflow-y:auto;margin:0.5rem 0;">
             <p style="color:var(--text-muted);font-size:0.75rem;">No saved routes yet.</p>
         </div>
-        <div class="modal-actions">
-            <button class="btn-ghost danger" id="clearHistoryBtn">Clear All</button>
-            <button class="btn-ghost" id="historyCancel">Close</button>
+        
+        <div class="history-bulk-actions" id="bulkActions">
+            <div class="selection-info" id="selectionInfo">
+                <span id="selectedCountDisplay">0</span> route<span id="selectedPlural">s</span> selected
+            </div>
+            <button class="btn-bulk-delete" id="bulkDeleteBtn" disabled>
+                <i class="bi bi-trash"></i> Delete Selected
+            </button>
+        </div>
+        
+        <div class="modal-actions-history">
+            <div class="left-actions">
+                <button class="btn-ghost danger" id="clearHistoryBtn">Clear All</button>
+            </div>
+            <div class="right-actions">
+                <button class="btn-ghost" id="historyCancel">Close</button>
+            </div>
         </div>
     </div>
 </div>
@@ -891,7 +1201,10 @@
             shareWhatsApp: '📋 My route: {link}',
             generatingLink: '⏳ Generating short link...',
             searchPassengers: '🔍 Search passengers...',
-            searchRoute: '🔍 Search in route...'
+            searchRoute: '🔍 Search in route...',
+            historyEntryDeleted: '🗑️ History entry deleted!',
+            copied: '✅ Copied!',
+            copy: '📋 Copy'
         },
         es: { 
             apiStatus: '📍 Añade conductor y pasajeros', 
@@ -944,7 +1257,10 @@
             shareWhatsApp: '📋 Mi ruta: {link}',
             generatingLink: '⏳ Generando enlace corto...',
             searchPassengers: '🔍 Buscar pasajeros...',
-            searchRoute: '🔍 Buscar en ruta...'
+            searchRoute: '🔍 Buscar en ruta...',
+            historyEntryDeleted: '🗑️ Entrada de historial eliminada!',
+            copied: '✅ Copiado!',
+            copy: '📋 Copiar'
         },
         pt: { 
             apiStatus: '📍 Adicione motorista e passageiros', 
@@ -997,7 +1313,10 @@
             shareWhatsApp: '📋 Minha rota: {link}',
             generatingLink: '⏳ Gerando link curto...',
             searchPassengers: '🔍 Buscar passageiros...',
-            searchRoute: '🔍 Buscar na rota...'
+            searchRoute: '🔍 Buscar na rota...',
+            historyEntryDeleted: '🗑️ Entrada do histórico excluída!',
+            copied: '✅ Copiado!',
+            copy: '📋 Copiar'
         }
     };
     let currentLang = 'en';
@@ -1163,6 +1482,7 @@
     let isReadOnly = false;
     let currentShareLink = '';
     let isOptimizing = false;
+    let selectedHistoryIds = new Set();
 
     // ----- READ-ONLY MODE -----
     function enableReadOnlyMode(driverName) {
@@ -1363,19 +1683,159 @@
         }
     }
 
-    // ----- LOAD HISTORY -----
+    // ----- POPUP COPY FUNCTION (FIXED) -----
+    function copyPopupContent(btn) {
+        const popupContent = btn.closest('.popup-content');
+        if (!popupContent) {
+            console.warn('Popup content not found');
+            return;
+        }
+        
+        let textParts = [];
+        
+        // Get the label (Driver or Passenger #N)
+        const labelEl = popupContent.querySelector('.label');
+        if (labelEl) {
+            textParts.push(labelEl.textContent.trim());
+        }
+        
+        // Get all value spans
+        const valueEls = popupContent.querySelectorAll('.value');
+        const values = [];
+        valueEls.forEach(el => {
+            values.push(el.textContent.trim());
+        });
+        
+        // Get the coordinates from the small text
+        const allText = popupContent.textContent;
+        const coordMatch = allText.match(/🌐\s*([-\d.,\s]+)/);
+        if (coordMatch) {
+            textParts.push('Coordinates: ' + coordMatch[1].trim());
+        }
+        
+        // Build the text to copy
+        if (values.length > 0) {
+            textParts.push('Name: ' + values[0]);
+            if (values.length > 1) {
+                const secondValue = values[1];
+                if (secondValue && (secondValue.match(/[\d+()\- ]/) || secondValue.match(/^\d/))) {
+                    textParts.push('Phone: ' + secondValue);
+                    if (values.length > 2) {
+                        textParts.push('Address: ' + values[2]);
+                    }
+                } else {
+                    textParts.push('Address: ' + secondValue);
+                }
+            }
+        }
+        
+        // Also try to get address and phone from the HTML directly
+        const phoneMatch = popupContent.innerHTML.match(/📞\s*<span[^>]*>([^<]*)<\/span>/);
+        if (phoneMatch && !textParts.some(p => p.startsWith('Phone:'))) {
+            textParts.push('Phone: ' + phoneMatch[1].trim());
+        }
+        
+        const addrMatch = popupContent.innerHTML.match(/📍\s*<span[^>]*>([^<]*)<\/span>/);
+        if (addrMatch && !textParts.some(p => p.startsWith('Address:'))) {
+            textParts.push('Address: ' + addrMatch[1].trim());
+        }
+        
+        if (textParts.length <= 1) {
+            const clone = popupContent.cloneNode(true);
+            const btnClone = clone.querySelector('.popup-copy-btn');
+            if (btnClone) btnClone.remove();
+            const text = clone.textContent.trim().split('\n').filter(s => s.trim()).map(s => s.trim());
+            textParts = text.length > 0 ? text : ['No data to copy'];
+        }
+        
+        const finalText = textParts.join('\n');
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(finalText).then(() => {
+                showCopyFeedback(btn);
+            }).catch(() => {
+                fallbackCopy(finalText, btn);
+            });
+        } else {
+            fallbackCopy(finalText, btn);
+        }
+    }
+
+    function fallbackCopy(text, btn) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showCopyFeedback(btn);
+        } catch (e) {
+            console.error('Copy failed:', e);
+            alert('Could not copy. Please select and copy the text manually.');
+        }
+        document.body.removeChild(textarea);
+    }
+
+    function showCopyFeedback(btn) {
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = '📋 Copy';
+            btn.classList.remove('copied');
+        }, 2500);
+    }
+
+    // ----- CREATE POPUP CONTENT -----
+    function createPopupContent(name, address, phone, lat, lng, isDriver = false, stopNumber = null) {
+        const label = isDriver ? '🚗 Driver' : `🧑 Passenger${stopNumber !== null ? ` #${stopNumber}` : ''}`;
+        const coords = lat && lng ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : 'No coordinates';
+        
+        const content = document.createElement('div');
+        content.className = 'popup-content';
+        content.innerHTML = `
+            <div><span class="label">${label}</span></div>
+            <div><span class="value">${escapeHtml(name || 'Unnamed')}</span></div>
+            ${phone ? `<div>📞 <span class="value">${escapeHtml(phone)}</span></div>` : ''}
+            <div>📍 <span class="value">${escapeHtml(address || 'No address')}</span></div>
+            <div style="font-size:0.55rem;opacity:0.5;">🌐 ${escapeHtml(coords)}</div>
+            <button class="popup-copy-btn" onclick="copyPopupContent(this)">📋 Copy</button>
+        `;
+        return content;
+    }
+
+    // ----- HISTORY SYSTEM -----
     function loadHistory() {
         try {
             const data = localStorage.getItem(HISTORY_KEY);
             if (data) {
                 const parsed = JSON.parse(data);
-                if (Array.isArray(parsed)) {
-                    routeHistory = parsed;
-                    console.log('📂 History loaded:', routeHistory.length, 'routes');
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const uniqueEntries = [];
+                    const seen = new Set();
+                    parsed.forEach(entry => {
+                        const key = JSON.stringify({
+                            driverId: entry.driverId || entry.driver?.name,
+                            passengerIds: entry.passengers?.map(p => p.id).sort() || [],
+                            order: entry.currentOrder || []
+                        });
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            uniqueEntries.push(entry);
+                        }
+                    });
+                    routeHistory = uniqueEntries;
+                    console.log('📂 History loaded:', routeHistory.length, 'unique routes');
                     return true;
                 }
             }
             routeHistory = [];
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(routeHistory));
+            console.log('📂 No history found, created empty history');
             return false;
         } catch(e) {
             console.error('Failed to load history:', e);
@@ -1396,28 +1856,36 @@
     }
 
     function addToHistory() {
-        if (isReadOnly) {
-            setStatus('⚠️ Read-only mode - cannot save', 'error');
-            return;
-        }
-        
-        if (!driver.lat) {
-            setStatus('⚠️ No driver set - cannot save route', 'error');
-            return;
-        }
-        
-        if (!currentOrder.length || !passengers.length) {
-            setStatus('⚠️ No route to save! Add passengers first.', 'error');
-            return;
-        }
+        if (isReadOnly) return false;
+        if (!driver.lat) return false;
+        if (!currentOrder.length || !passengers.length) return false;
         
         const nodes = getOrderedNodesForPanel();
-        if (!nodes || nodes.length < 2) {
-            setStatus('⚠️ Invalid route data - cannot save', 'error');
-            return;
-        }
+        if (!nodes || nodes.length < 2) return false;
         
         const totalDistText = document.getElementById('panelTotalDistance').textContent;
+        
+        const newKey = JSON.stringify({
+            driverId: driver.driverId || driver.name,
+            passengerIds: passengers.map(p => p.id).sort(),
+            order: currentOrder
+        });
+        
+        const recentEntries = routeHistory.slice(0, 10);
+        const duplicate = recentEntries.some(entry => {
+            const entryKey = JSON.stringify({
+                driverId: entry.driverId || entry.driver?.name,
+                passengerIds: entry.passengers?.map(p => p.id).sort() || [],
+                order: entry.currentOrder || []
+            });
+            return entryKey === newKey;
+        });
+        
+        if (duplicate) {
+            setStatus('ℹ️ This route is already in history', '');
+            setTimeout(() => setStatus(t('apiStatus')), 1500);
+            return false;
+        }
         
         const entry = {
             id: Date.now(),
@@ -1455,6 +1923,29 @@
         }
         
         return true;
+    }
+
+    function deleteHistoryEntry(id) {
+        if (isReadOnly) return;
+        
+        const entry = routeHistory.find(h => h.id === id);
+        if (!entry) {
+            setStatus('⚠️ Entry not found!', 'error');
+            return;
+        }
+        
+        if (!confirm(`Delete history entry for "${entry.driver?.name || 'Driver'}" from ${entry.date || ''} ${entry.time || ''}?`)) {
+            return;
+        }
+        
+        routeHistory = routeHistory.filter(h => h.id !== id);
+        selectedHistoryIds.delete(id);
+        saveHistory();
+        renderHistoryList(document.getElementById('historySearchInput')?.value || '');
+        updateSelectionUI();
+        updateHistoryTotalCount();
+        setStatus(t('historyEntryDeleted'), 'success');
+        setTimeout(() => setStatus(t('apiStatus')), 1500);
     }
 
     function restoreFromHistory(id) {
@@ -1496,14 +1987,292 @@
 
     function clearHistory() { 
         if (isReadOnly) return;
-        if(!confirm('Clear all route history?')) return; 
+        if(routeHistory.length === 0) {
+            setStatus('ℹ️ No history to clear', '');
+            return;
+        }
+        if(!confirm('Clear ALL route history?')) return; 
         routeHistory=[]; 
+        selectedHistoryIds.clear();
+        const selectAll = document.getElementById('selectAllHistory');
+        if (selectAll) selectAll.checked = false;
         saveHistory(); 
         setStatus(t('historyCleared'),'success'); 
         setTimeout(()=>setStatus(t('apiStatus')), 1500); 
         if (document.getElementById('historyModal').classList.contains('show')) {
             renderHistoryList();
         }
+        updateHistoryTotalCount();
+        updateSelectionUI();
+    }
+
+    // ----- HISTORY MANAGEMENT FUNCTIONS -----
+    function toggleSelectAllHistory() {
+        const checkbox = document.getElementById('selectAllHistory');
+        const isChecked = checkbox.checked;
+        const entries = document.querySelectorAll('.history-entry-checkbox');
+        
+        entries.forEach(cb => {
+            cb.checked = isChecked;
+            const wrapper = cb.closest('.history-entry-wrapper');
+            if (wrapper) {
+                wrapper.classList.toggle('selected', isChecked);
+            }
+            if (isChecked) {
+                selectedHistoryIds.add(parseInt(cb.dataset.id));
+            } else {
+                selectedHistoryIds.delete(parseInt(cb.dataset.id));
+            }
+        });
+        
+        updateSelectionUI();
+    }
+
+    function toggleHistoryEntry(id, checked) {
+        if (checked) {
+            selectedHistoryIds.add(id);
+        } else {
+            selectedHistoryIds.delete(id);
+        }
+        updateSelectionUI();
+        
+        const allCheckboxes = document.querySelectorAll('.history-entry-checkbox');
+        const checkedCheckboxes = document.querySelectorAll('.history-entry-checkbox:checked');
+        const selectAll = document.getElementById('selectAllHistory');
+        if (selectAll) {
+            selectAll.checked = allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length;
+        }
+    }
+
+    function updateSelectionUI() {
+        const count = selectedHistoryIds.size;
+        const counter = document.getElementById('selectionCounter');
+        const countDisplay = document.getElementById('selectedCount');
+        const bulkBtn = document.getElementById('bulkDeleteBtn');
+        const selectionInfo = document.getElementById('selectionInfo');
+        const selectedCountDisplay = document.getElementById('selectedCountDisplay');
+        const selectedPlural = document.getElementById('selectedPlural');
+        
+        if (count > 0) {
+            counter.classList.add('show');
+            countDisplay.textContent = count;
+            bulkBtn.classList.add('show');
+            bulkBtn.disabled = false;
+            selectionInfo.classList.add('show');
+            selectedCountDisplay.textContent = count;
+            selectedPlural.textContent = count > 1 ? 's' : '';
+        } else {
+            counter.classList.remove('show');
+            bulkBtn.classList.remove('show');
+            bulkBtn.disabled = true;
+            selectionInfo.classList.remove('show');
+        }
+    }
+
+    function deleteSelectedHistory() {
+        const count = selectedHistoryIds.size;
+        if (count === 0) {
+            setStatus('⚠️ No routes selected', 'error');
+            return;
+        }
+        
+        if (!confirm(`Delete ${count} selected route${count > 1 ? 's' : ''}?`)) {
+            return;
+        }
+        
+        routeHistory = routeHistory.filter(entry => !selectedHistoryIds.has(entry.id));
+        selectedHistoryIds.clear();
+        saveHistory();
+        
+        const selectAll = document.getElementById('selectAllHistory');
+        if (selectAll) selectAll.checked = false;
+        
+        renderHistoryList(document.getElementById('historySearchInput')?.value || '');
+        updateSelectionUI();
+        updateHistoryTotalCount();
+        
+        setStatus(`🗑️ ${count} route${count > 1 ? 's' : ''} deleted!`, 'success');
+        setTimeout(() => setStatus(t('apiStatus')), 1500);
+    }
+
+    function clearDateGroup(dateKey) {
+        if (!confirm(`Delete ALL routes from ${dateKey}?`)) return;
+        
+        const entriesToDelete = routeHistory.filter(entry => entry.date === dateKey);
+        if (entriesToDelete.length === 0) return;
+        
+        routeHistory = routeHistory.filter(entry => entry.date !== dateKey);
+        entriesToDelete.forEach(entry => selectedHistoryIds.delete(entry.id));
+        saveHistory();
+        
+        renderHistoryList(document.getElementById('historySearchInput')?.value || '');
+        updateSelectionUI();
+        updateHistoryTotalCount();
+        
+        setStatus(`🗑️ ${entriesToDelete.length} routes from ${dateKey} deleted!`, 'success');
+        setTimeout(() => setStatus(t('apiStatus')), 1500);
+    }
+
+    function updateHistoryTotalCount() {
+        const badge = document.getElementById('historyTotalCount');
+        if (badge) {
+            badge.textContent = routeHistory.length;
+        }
+    }
+
+    function renderHistoryList(searchQuery = '') {
+        const container = document.getElementById('historyList');
+        if (!container) return;
+        
+        selectedHistoryIds.clear();
+        const selectAll = document.getElementById('selectAllHistory');
+        if (selectAll) selectAll.checked = false;
+        updateSelectionUI();
+        
+        if (!routeHistory || !routeHistory.length) {
+            container.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;">${t('noHistory')}</p>`;
+            updateHistoryTotalCount();
+            return;
+        }
+        
+        let filtered = routeHistory;
+        if (searchQuery && searchQuery.trim()) {
+            const query = searchQuery.toLowerCase().trim();
+            filtered = routeHistory.filter(entry => {
+                const searchText = `${entry.driver?.name || ''} ${entry.driver?.address || ''} ${entry.timestamp || ''} ${entry.date || ''} ${entry.time || ''} ${entry.routeSummary || ''}`.toLowerCase();
+                return searchText.includes(query);
+            });
+        }
+        
+        if (!filtered.length) {
+            container.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;">🔍 No routes found matching "${escapeHtml(searchQuery)}"</p>`;
+            updateHistoryTotalCount();
+            return;
+        }
+        
+        const groups = {};
+        filtered.forEach(entry => {
+            const dateKey = entry.date || 'Unknown Date';
+            if (!groups[dateKey]) {
+                groups[dateKey] = [];
+            }
+            groups[dateKey].push(entry);
+        });
+        
+        const sortedDates = Object.keys(groups).sort((a, b) => {
+            if (a === 'Unknown Date') return 1;
+            if (b === 'Unknown Date') return -1;
+            return new Date(b) - new Date(a);
+        });
+        
+        let html = '';
+        sortedDates.forEach(dateKey => {
+            const entries = groups[dateKey];
+            const groupId = 'date-group-' + dateKey.replace(/\s/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+            
+            html += `<div class="history-date-group">
+                <div class="history-date-header" onclick="toggleHistoryGroup('${groupId}')">
+                    <span class="date-label">📅 ${escapeHtml(dateKey)}</span>
+                    <div class="date-actions">
+                        <span class="date-count">${entries.length} route${entries.length > 1 ? 's' : ''}</span>
+                        <button class="date-clear-btn" onclick="event.stopPropagation();clearDateGroup('${escapeHtml(dateKey)}')" title="Delete all routes from this date">
+                            <i class="bi bi-trash"></i> Clear Date
+                        </button>
+                        <span class="date-arrow" id="${groupId}-arrow">▼</span>
+                    </div>
+                </div>
+                <div class="history-entries-container" id="${groupId}">`;
+            
+            entries.forEach(entry => {
+                const dateTime = entry.date && entry.time ? `${entry.date} ${entry.time}` : entry.timestamp || 'Unknown';
+                html += `<div class="history-entry-wrapper" id="entry-${entry.id}">
+                    <input type="checkbox" class="history-entry-checkbox" data-id="${entry.id}" onchange="toggleHistoryEntry(${entry.id}, this.checked)">
+                    <div class="history-entry-content" onclick="restoreFromHistory(${entry.id})" onmouseover="this.parentElement.style.background='rgba(79,191,139,0.08)'" onmouseout="this.parentElement.style.background=''">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                            <span style="font-weight:600;color:var(--text-primary);font-size:0.75rem;">🚗 ${escapeHtml(entry.driver?.name || 'Driver')} - ${entry.stops || 0} stops</span>
+                            <span style="color:var(--text-muted);font-size:0.5rem;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:20px;">${escapeHtml(entry.time || '')}</span>
+                        </div>
+                        <div style="color:var(--text-muted);font-size:0.55rem;margin-top:2px;">
+                            ${entry.totalDistance || '📏 ---'} 
+                            <span style="opacity:0.4;margin-left:8px;">📍 ${escapeHtml(entry.driver?.address || 'No address')}</span>
+                        </div>
+                    </div>
+                    <button class="history-delete-btn" onclick="event.stopPropagation();deleteHistoryEntry(${entry.id})" title="Delete this history entry">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>`;
+            });
+            
+            html += `</div></div>`;
+        });
+        
+        container.innerHTML = html;
+        updateHistoryTotalCount();
+        
+        if (sortedDates.length === 1) {
+            const groupId = 'date-group-' + sortedDates[0].replace(/\s/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+            const containerEl = document.getElementById(groupId);
+            const arrow = document.getElementById(groupId + '-arrow');
+            if (containerEl && arrow) {
+                containerEl.classList.remove('collapsed');
+                arrow.classList.remove('collapsed');
+            }
+        }
+    }
+
+    function toggleHistoryGroup(groupId) {
+        const container = document.getElementById(groupId);
+        const arrow = document.getElementById(groupId + '-arrow');
+        if (container) {
+            container.classList.toggle('collapsed');
+            if (arrow) {
+                arrow.classList.toggle('collapsed');
+            }
+        }
+    }
+
+    function showHistory() {
+        selectedHistoryIds.clear();
+        const selectAll = document.getElementById('selectAllHistory');
+        if (selectAll) selectAll.checked = false;
+        updateSelectionUI();
+        
+        loadHistory();
+        renderHistoryList();
+        document.getElementById('historyModal').classList.add('show');
+        setTimeout(() => {
+            const input = document.getElementById('historySearchInput');
+            if (input) input.focus();
+        }, 100);
+    }
+
+    function setupHistorySearch() {
+        const input = document.getElementById('historySearchInput');
+        const clearBtn = document.getElementById('clearHistorySearch');
+        if (!input) return;
+        
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearBtn.classList.toggle('visible', query.length > 0);
+            renderHistoryList(query);
+        });
+        
+        clearBtn.addEventListener('click', function() {
+            input.value = '';
+            clearBtn.classList.remove('visible');
+            renderHistoryList('');
+            input.focus();
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                clearBtn.classList.remove('visible');
+                renderHistoryList('');
+                this.blur();
+                e.preventDefault();
+            }
+        });
     }
 
     // ----- MAP INIT -----
@@ -1527,8 +2296,6 @@
             getUserLocation();
             setStatus(t('mapReady'), '');
         }
-        
-        loadHistory();
         
         if (!loaded && driver.lat) {
             generateShareLink();
@@ -1680,38 +2447,35 @@
         clearRoutes();
         resetItinerary();
     }
-
     function toggleDriverEditMode() {
-    if (isReadOnly) return;
-    if (!driver.lat) { 
-        setStatus('⚠️ Set driver first', 'error'); 
-        return; 
-    }
-    
-    // If passenger edit mode is active, cancel it first
-    if (editingPassengerId !== null) {
-        editingPassengerId = null;
-        editMode = false;
-        document.querySelectorAll('.pax-item').forEach(item => {
-            item.style.borderColor = '';
-            item.style.borderWidth = '';
-        });
+        if (isReadOnly) return;
+        if (!driver.lat) { 
+            setStatus('⚠️ Set driver first', 'error'); 
+            return; 
+        }
+        
+        if (editingPassengerId !== null) {
+            editingPassengerId = null;
+            editMode = false;
+            document.querySelectorAll('.pax-item').forEach(item => {
+                item.style.borderColor = '';
+                item.style.borderWidth = '';
+            });
+            updateMarkersAndMap();
+            updatePassengerUI();
+        }
+        
+        editingDriver = !editingDriver;
+        if (editingDriver) {
+            setStatus(`✏️ Drag driver marker to new location (Press ESC to cancel)`, 'edit-mode');
+            if (map) map.setView([driver.lat, driver.lng], 15);
+        } else {
+            setStatus(t('pickModeCancelled'), 'success');
+            setTimeout(() => setStatus(t('apiStatus')), 1500);
+        }
         updateMarkersAndMap();
-        updatePassengerUI();
+        updateDriverUI();
     }
-    
-    editingDriver = !editingDriver;
-    if (editingDriver) {
-        setStatus(`✏️ Drag driver marker to new location (Press ESC to cancel)`, 'edit-mode');
-        if (map) map.setView([driver.lat, driver.lng], 15);
-    } else {
-        setStatus(t('pickModeCancelled'), 'success');
-        setTimeout(() => setStatus(t('apiStatus')), 1500);
-    }
-    updateMarkersAndMap();
-    updateDriverUI();
-}
-
     async function updateDriverLocation(lat,lng,newAddress=null) {
         if (isReadOnly) return;
         driver.lat=lat; driver.lng=lng;
@@ -2234,51 +2998,50 @@
 
     // ----- EDIT MODE FOR PASSENGER (drag marker) -----
     function toggleEditModeForPassenger(id) {
-    if (isReadOnly) return;
-    const p = passengers.find(p => p.id === id);
-    if (!p) return;
-    
-    if (editingPassengerId === id) {
-        editingPassengerId = null;
-        editMode = false;
-        setStatus(t('pickModeCancelled'), 'success');
-        setTimeout(() => setStatus(t('apiStatus')), 1500);
-        updateMarkersAndMap();
-        updatePassengerUI();
-        return;
-    }
-    
-    // If another passenger is being edited, cancel that first
-    if (editingPassengerId !== null) {
-        const oldId = editingPassengerId;
-        editingPassengerId = null;
-        editMode = false;
-        document.querySelectorAll('.pax-item').forEach(item => {
-            item.style.borderColor = '';
-            item.style.borderWidth = '';
-        });
-        updateMarkersAndMap();
-        updatePassengerUI();
-    }
-    
-    editMode = true;
-    editingPassengerId = id;
-    setStatus(`✏️ Drag marker for ${p.name} to new location (Press ESC to cancel)`, 'edit-mode');
-    updateMarkersAndMap();
-    updatePassengerUI();
-    
-    document.querySelectorAll('.pax-item').forEach(item => {
-        if (parseInt(item.dataset.id) === id) {
-            item.style.borderColor = 'var(--gold)';
-            item.style.borderWidth = '2px';
-        } else {
-            item.style.borderColor = '';
-            item.style.borderWidth = '';
+        if (isReadOnly) return;
+        const p = passengers.find(p => p.id === id);
+        if (!p) return;
+        
+        if (editingPassengerId === id) {
+            editingPassengerId = null;
+            editMode = false;
+            setStatus(t('pickModeCancelled'), 'success');
+            setTimeout(() => setStatus(t('apiStatus')), 1500);
+            updateMarkersAndMap();
+            updatePassengerUI();
+            return;
         }
-    });
-    
-    if (map) map.setView([p.lat, p.lng], 15);
-}
+        
+        if (editingPassengerId !== null) {
+            const oldId = editingPassengerId;
+            editingPassengerId = null;
+            editMode = false;
+            document.querySelectorAll('.pax-item').forEach(item => {
+                item.style.borderColor = '';
+                item.style.borderWidth = '';
+            });
+            updateMarkersAndMap();
+            updatePassengerUI();
+        }
+        
+        editMode = true;
+        editingPassengerId = id;
+        setStatus(`✏️ Drag marker for ${p.name} to new location (Press ESC to cancel)`, 'edit-mode');
+        updateMarkersAndMap();
+        updatePassengerUI();
+        
+        document.querySelectorAll('.pax-item').forEach(item => {
+            if (parseInt(item.dataset.id) === id) {
+                item.style.borderColor = 'var(--gold)';
+                item.style.borderWidth = '2px';
+            } else {
+                item.style.borderColor = '';
+                item.style.borderWidth = '';
+            }
+        });
+        
+        if (map) map.setView([p.lat, p.lng], 15);
+    }
 
     // ----- MARKERS -----
     function updateMarkersAndMap() {
@@ -2290,7 +3053,8 @@
             const cls = isEditing ? 'custom-marker-driver editing' : 'custom-marker-driver';
             const icon=L.divIcon({ html:'🚗', className:`custom-marker ${cls}`, iconSize: isEditing ? [38,38] : [34,34], popupAnchor:[0,-17] });
             const m=L.marker([driver.lat,driver.lng],{icon, draggable: isEditing}).addTo(map);
-            m.bindPopup(`<b>🚘 ${escapeHtml(driver.name||'Driver')}</b><br>${escapeHtml(driver.address)}${driver.phone?'<br>📞 '+escapeHtml(driver.phone):''}${isEditing?'<br><i>✏️ Drag to move</i>':''}`);
+            const popupContent = createPopupContent(driver.name, driver.address, driver.phone, driver.lat, driver.lng, true);
+            m.bindPopup(popupContent);
             if(isEditing) {
                 m.on('dragend', function(e) {
                     if (isReadOnly) return;
@@ -2314,7 +3078,9 @@
             const cls=isEditing?'custom-marker-pax editing':(ordered?'custom-marker-pax-ordered':'custom-marker-pax');
             const icon=L.divIcon({ html:label, className:`custom-marker ${cls}`, iconSize:[28,28], popupAnchor:[0,-14] });
             const m=L.marker([p.lat,p.lng], {icon, draggable: isEditing}).addTo(map);
-            m.bindPopup(`<b>🧑 ${escapeHtml(p.name)}</b>${ordered?`<br>Stop #${num+1}`:''}${p.phone?'<br>📞 '+escapeHtml(p.phone):''}<br>📌 ${escapeHtml(p.address)}${isEditing?'<br><i>✏️ Drag to move</i>':''}`);
+            const stopNum = ordered ? num + 1 : null;
+            const popupContent = createPopupContent(p.name, p.address, p.phone, p.lat, p.lng, false, stopNum);
+            m.bindPopup(popupContent);
             if(isEditing) {
                 m.on('dragend', function(e) {
                     if (isReadOnly) return;
@@ -2394,7 +3160,6 @@
         }
     }
 
-    // REAL-TIME ROUTE UPDATE - called instantly whenever data changes
     function updateRouteRealTime() {
         if (!driver.lat || !passengers.length) {
             if (routeLayers.length > 0) {
@@ -2453,6 +3218,12 @@
             
             setStatus(`✅ Route updated • ${total.toFixed(1)} km • ${currentOrder.length} stops`, 'success');
             
+            if (!isReadOnly && currentOrder.length > 0) {
+                setTimeout(() => {
+                    addToHistory();
+                }, 100);
+            }
+            
         } catch(e) {
             console.error('Real-time route error:', e);
         } finally {
@@ -2460,7 +3231,6 @@
         }
     }
 
-    // Keep this for backward compatibility but use real-time version
     async function optimizeAndRoute() {
         updateRouteRealTime();
     }
@@ -2536,7 +3306,7 @@
         return nodes;
     }
 
-    // ----- EXPORT/IMPORT FULL DATA -----
+    // ----- EXPORT/IMPORT -----
     function exportFullData() {
         try {
             const data={version:'2.0', exportedAt:new Date().toISOString(), driver, passengers, currentOrder, nextId, cachedRouteData};
@@ -2679,89 +3449,6 @@
                 setTimeout(updateRouteRealTime, 100);
             }
         } else setStatus('⚠️ No passengers could be added. Check addresses.','error');
-    }
-
-    // ----- HISTORY UI -----
-    function renderHistoryList(searchQuery = '') {
-        const container = document.getElementById('historyList');
-        if (!container) return;
-        
-        if (!routeHistory || !routeHistory.length) {
-            container.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;">${t('noHistory')}</p>`;
-            return;
-        }
-        
-        let filtered = routeHistory;
-        if (searchQuery && searchQuery.trim()) {
-            const query = searchQuery.toLowerCase().trim();
-            filtered = routeHistory.filter(entry => {
-                const searchText = `${entry.driver?.name || ''} ${entry.driver?.address || ''} ${entry.timestamp || ''} ${entry.date || ''} ${entry.time || ''} ${entry.routeSummary || ''}`.toLowerCase();
-                return searchText.includes(query);
-            });
-        }
-        
-        if (!filtered.length) {
-            container.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;">🔍 No routes found matching "${escapeHtml(searchQuery)}"</p>`;
-            return;
-        }
-        
-        let html = '';
-        filtered.forEach(entry => {
-            const dateTime = entry.date && entry.time ? `${entry.date} ${entry.time}` : entry.timestamp || 'Unknown';
-            html += `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;border-left:3px solid var(--accent);transition:var(--transition);" 
-                          onclick="restoreFromHistory(${entry.id})"
-                          onmouseover="this.style.background='rgba(79,191,139,0.1)'"
-                          onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
-                    <span style="font-weight:600;color:var(--text-primary);font-size:0.8rem;">🚗 ${escapeHtml(entry.driver?.name || 'Driver')} - ${entry.stops || 0} stops</span>
-                    <span style="color:var(--text-muted);font-size:0.55rem;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:20px;">${escapeHtml(dateTime)}</span>
-                </div>
-                <div style="color:var(--text-muted);font-size:0.6rem;margin-top:2px;">
-                    ${entry.totalDistance || '📏 ---'} 
-                    <span style="opacity:0.4;margin-left:8px;">📍 ${escapeHtml(entry.driver?.address || 'No address')}</span>
-                </div>
-            </div>`;
-        });
-        container.innerHTML = html;
-    }
-
-    function showHistory() {
-        loadHistory();
-        renderHistoryList();
-        document.getElementById('historyModal').classList.add('show');
-        setTimeout(() => {
-            const input = document.getElementById('historySearchInput');
-            if (input) input.focus();
-        }, 100);
-    }
-
-    function setupHistorySearch() {
-        const input = document.getElementById('historySearchInput');
-        const clearBtn = document.getElementById('clearHistorySearch');
-        if (!input) return;
-        
-        input.addEventListener('input', function() {
-            const query = this.value.trim();
-            clearBtn.classList.toggle('visible', query.length > 0);
-            renderHistoryList(query);
-        });
-        
-        clearBtn.addEventListener('click', function() {
-            input.value = '';
-            clearBtn.classList.remove('visible');
-            renderHistoryList('');
-            input.focus();
-        });
-        
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                this.value = '';
-                clearBtn.classList.remove('visible');
-                renderHistoryList('');
-                this.blur();
-                e.preventDefault();
-            }
-        });
     }
 
     // ----- ITINERARY EDITABLE LISTENERS -----
@@ -2965,6 +3652,39 @@
         });
     }
 
+    // ----- EDIT MODE ESC LISTENER -----
+    function setupEditModeEscListener() {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (editingDriver) {
+                    editingDriver = false;
+                    setStatus(t('pickModeCancelled'), 'success');
+                    setTimeout(() => setStatus(t('apiStatus')), 1500);
+                    updateMarkersAndMap();
+                    updateDriverUI();
+                    e.preventDefault();
+                    return;
+                }
+                
+                if (editingPassengerId !== null) {
+                    const passengerName = passengers.find(p => p.id === editingPassengerId)?.name || 'Passenger';
+                    editingPassengerId = null;
+                    editMode = false;
+                    document.querySelectorAll('.pax-item').forEach(item => {
+                        item.style.borderColor = '';
+                        item.style.borderWidth = '';
+                    });
+                    setStatus(`✅ Edit mode cancelled for ${passengerName}`, 'success');
+                    setTimeout(() => setStatus(t('apiStatus')), 1500);
+                    updateMarkersAndMap();
+                    updatePassengerUI();
+                    e.preventDefault();
+                    return;
+                }
+            }
+        });
+    }
+
     // ----- LANGUAGE -----
     function updateLang(lang) {
         currentLang=lang;
@@ -3013,8 +3733,30 @@
                 searchInput.value = '';
                 document.getElementById('clearHistorySearch').classList.remove('visible');
             }
+            selectedHistoryIds.clear();
+            const selectAll = document.getElementById('selectAllHistory');
+            if (selectAll) selectAll.checked = false;
+            updateSelectionUI();
         });
-        document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{ clearHistory(); showHistory(); });
+        document.getElementById('clearHistoryBtn').addEventListener('click', function() {
+            if (routeHistory.length === 0) {
+                setStatus('ℹ️ No history to clear', '');
+                return;
+            }
+            if (!confirm('Clear ALL route history?')) return;
+            routeHistory = [];
+            selectedHistoryIds.clear();
+            const selectAll = document.getElementById('selectAllHistory');
+            if (selectAll) selectAll.checked = false;
+            saveHistory();
+            setStatus(t('historyCleared'), 'success');
+            setTimeout(() => setStatus(t('apiStatus')), 1500);
+            if (document.getElementById('historyModal').classList.contains('show')) {
+                renderHistoryList();
+            }
+            updateHistoryTotalCount();
+            updateSelectionUI();
+        });
         document.getElementById('saveRouteBtn').addEventListener('click', addToHistory);
         document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
         document.getElementById('exportGpxBtn').addEventListener('click', exportGPX);
@@ -3024,6 +3766,10 @@
         document.getElementById('copyShareLinkBtn').addEventListener('click', copyShareLink);
         document.getElementById('whatsappShareBtn').addEventListener('click', shareOnWhatsApp);
         document.getElementById('shareNativeBtn').addEventListener('click', shareNative);
+        
+        // History management events
+        document.getElementById('selectAllHistory').addEventListener('change', toggleSelectAllHistory);
+        document.getElementById('bulkDeleteBtn').addEventListener('click', deleteSelectedHistory);
         
         document.getElementById('driverAddr').addEventListener('keypress', e=>{ if(e.key==='Enter') setDriver(); });
         document.getElementById('driverPhone').addEventListener('keypress', e=>{ if(e.key==='Enter') setDriver(); });
@@ -3036,23 +3782,25 @@
 
     // ----- INIT -----
     function init() {
-    loadHistory();
-    initMap();
-    bindEvents();
-    setupModalEscListeners();
-    setupEditModeEscListener(); // <-- ADD THIS LINE
-    setupHistorySearch();
-    updateDriverUI();
-    updatePassengerBadge();
-    updateLang('en');
-    resetItinerary();
-    console.log('✅ RoutMap initialized with real-time routing');
-    
-    if (driver.lat && passengers.length > 0) {
-        setTimeout(updateRouteRealTime, 200);
+        loadHistory();
+        console.log('📂 Initial history load:', routeHistory.length, 'routes');
+        updateHistoryTotalCount();
+        
+        initMap();
+        bindEvents();
+        setupModalEscListeners();
+        setupEditModeEscListener();
+        setupHistorySearch();
+        updateDriverUI();
+        updatePassengerBadge();
+        updateLang('en');
+        resetItinerary();
+        console.log('✅ RoutMap initialized with real-time routing');
+        
+        if (driver.lat && passengers.length > 0) {
+            setTimeout(updateRouteRealTime, 200);
+        }
     }
-}
-    
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
@@ -3089,97 +3837,6 @@
             });
         }
     }
-
-
-    // Setup history search
-function setupHistorySearch() {
-    const input = document.getElementById('historySearchInput');
-    const clearBtn = document.getElementById('clearHistorySearch');
-    if (!input) return;
-    
-    input.addEventListener('input', function() {
-        const query = this.value.trim();
-        clearBtn.classList.toggle('visible', query.length > 0);
-        renderHistoryList(query);
-    });
-    
-    clearBtn.addEventListener('click', function() {
-        input.value = '';
-        clearBtn.classList.remove('visible');
-        renderHistoryList('');
-        input.focus();
-    });
-    
-    // ESC key support
-/*    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            // Clear the search
-            this.value = '';
-            clearBtn.classList.remove('visible');
-            renderHistoryList('');
-            this.blur();
-            e.preventDefault();
-        }
-    });*/
-
-       input.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        if (this.value.trim() !== '') {
-            // Clear the search if not empty
-            this.value = '';
-        } else {
-            // Otherwise close
-            clearBtn.classList.remove('visible');
-            renderHistoryList('');
-            this.blur();
-            e.preventDefault();
-        }
-    }
-
-    });
-}
-
-
-
-//extras
-
-// Add this function after setupModalEscListeners()
-function setupEditModeEscListener() {
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            // Check if driver edit mode is active
-            if (editingDriver) {
-                editingDriver = false;
-                setStatus(t('pickModeCancelled'), 'success');
-                setTimeout(() => setStatus(t('apiStatus')), 1500);
-                updateMarkersAndMap();
-                updateDriverUI();
-                e.preventDefault();
-                return;
-            }
-            
-            // Check if passenger edit mode is active
-            if (editingPassengerId !== null) {
-                const passengerName = passengers.find(p => p.id === editingPassengerId)?.name || 'Passenger';
-                editingPassengerId = null;
-                editMode = false;
-                document.querySelectorAll('.pax-item').forEach(item => {
-                    item.style.borderColor = '';
-                    item.style.borderWidth = '';
-                });
-                setStatus(`✅ Edit mode cancelled for ${passengerName}`, 'success');
-                setTimeout(() => setStatus(t('apiStatus')), 1500);
-                updateMarkersAndMap();
-                updatePassengerUI();
-                e.preventDefault();
-                return;
-            }
-        }
-    });
-}
-
-
-
 </script>
 </body>
 </html>
