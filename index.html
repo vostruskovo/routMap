@@ -1680,20 +1680,38 @@
         clearRoutes();
         resetItinerary();
     }
+
     function toggleDriverEditMode() {
-        if (isReadOnly) return;
-        if(!driver.lat) { setStatus('⚠️ Set driver first','error'); return; }
-        editingDriver = !editingDriver;
-        if(editingDriver) {
-            setStatus(`✏️ Drag driver marker to new location`,'edit-mode');
-            if(map) map.setView([driver.lat, driver.lng], 15);
-        } else {
-            setStatus(t('pickModeCancelled'),'success');
-            setTimeout(()=>setStatus(t('apiStatus')),1500);
-        }
-        updateMarkersAndMap();
-        updateDriverUI();
+    if (isReadOnly) return;
+    if (!driver.lat) { 
+        setStatus('⚠️ Set driver first', 'error'); 
+        return; 
     }
+    
+    // If passenger edit mode is active, cancel it first
+    if (editingPassengerId !== null) {
+        editingPassengerId = null;
+        editMode = false;
+        document.querySelectorAll('.pax-item').forEach(item => {
+            item.style.borderColor = '';
+            item.style.borderWidth = '';
+        });
+        updateMarkersAndMap();
+        updatePassengerUI();
+    }
+    
+    editingDriver = !editingDriver;
+    if (editingDriver) {
+        setStatus(`✏️ Drag driver marker to new location (Press ESC to cancel)`, 'edit-mode');
+        if (map) map.setView([driver.lat, driver.lng], 15);
+    } else {
+        setStatus(t('pickModeCancelled'), 'success');
+        setTimeout(() => setStatus(t('apiStatus')), 1500);
+    }
+    updateMarkersAndMap();
+    updateDriverUI();
+}
+
     async function updateDriverLocation(lat,lng,newAddress=null) {
         if (isReadOnly) return;
         driver.lat=lat; driver.lng=lng;
@@ -2216,24 +2234,51 @@
 
     // ----- EDIT MODE FOR PASSENGER (drag marker) -----
     function toggleEditModeForPassenger(id) {
-        if (isReadOnly) return;
-        const p=passengers.find(p=>p.id===id);
-        if(!p) return;
-        if(editingPassengerId===id) {
-            editingPassengerId=null; editMode=false;
-            setStatus(t('pickModeCancelled'),'success');
-            setTimeout(()=>setStatus(t('apiStatus')),1500);
-            updateMarkersAndMap(); updatePassengerUI();
-            return;
-        }
-        editMode=true; editingPassengerId=id;
-        setStatus(`✏️ Drag marker for ${p.name} to new location`,'edit-mode');
-        updateMarkersAndMap(); updatePassengerUI();
-        document.querySelectorAll('.pax-item').forEach(item=>{
-            if(parseInt(item.dataset.id)===id){ item.style.borderColor='var(--gold)'; item.style.borderWidth='2px'; } else { item.style.borderColor=''; item.style.borderWidth=''; }
-        });
-        if(map) map.setView([p.lat,p.lng],15);
+    if (isReadOnly) return;
+    const p = passengers.find(p => p.id === id);
+    if (!p) return;
+    
+    if (editingPassengerId === id) {
+        editingPassengerId = null;
+        editMode = false;
+        setStatus(t('pickModeCancelled'), 'success');
+        setTimeout(() => setStatus(t('apiStatus')), 1500);
+        updateMarkersAndMap();
+        updatePassengerUI();
+        return;
     }
+    
+    // If another passenger is being edited, cancel that first
+    if (editingPassengerId !== null) {
+        const oldId = editingPassengerId;
+        editingPassengerId = null;
+        editMode = false;
+        document.querySelectorAll('.pax-item').forEach(item => {
+            item.style.borderColor = '';
+            item.style.borderWidth = '';
+        });
+        updateMarkersAndMap();
+        updatePassengerUI();
+    }
+    
+    editMode = true;
+    editingPassengerId = id;
+    setStatus(`✏️ Drag marker for ${p.name} to new location (Press ESC to cancel)`, 'edit-mode');
+    updateMarkersAndMap();
+    updatePassengerUI();
+    
+    document.querySelectorAll('.pax-item').forEach(item => {
+        if (parseInt(item.dataset.id) === id) {
+            item.style.borderColor = 'var(--gold)';
+            item.style.borderWidth = '2px';
+        } else {
+            item.style.borderColor = '';
+            item.style.borderWidth = '';
+        }
+    });
+    
+    if (map) map.setView([p.lat, p.lng], 15);
+}
 
     // ----- MARKERS -----
     function updateMarkersAndMap() {
@@ -2991,21 +3036,23 @@
 
     // ----- INIT -----
     function init() {
-        loadHistory();
-        initMap();
-        bindEvents();
-        setupModalEscListeners();
-        setupHistorySearch();
-        updateDriverUI();
-        updatePassengerBadge();
-        updateLang('en');
-        resetItinerary();
-        console.log('✅ RoutMap initialized with real-time routing');
-        
-        if (driver.lat && passengers.length > 0) {
-            setTimeout(updateRouteRealTime, 200);
-        }
+    loadHistory();
+    initMap();
+    bindEvents();
+    setupModalEscListeners();
+    setupEditModeEscListener(); // <-- ADD THIS LINE
+    setupHistorySearch();
+    updateDriverUI();
+    updatePassengerBadge();
+    updateLang('en');
+    resetItinerary();
+    console.log('✅ RoutMap initialized with real-time routing');
+    
+    if (driver.lat && passengers.length > 0) {
+        setTimeout(updateRouteRealTime, 200);
     }
+}
+    
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
@@ -3091,6 +3138,48 @@ function setupHistorySearch() {
 
     });
 }
+
+
+
+//extras
+
+// Add this function after setupModalEscListeners()
+function setupEditModeEscListener() {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // Check if driver edit mode is active
+            if (editingDriver) {
+                editingDriver = false;
+                setStatus(t('pickModeCancelled'), 'success');
+                setTimeout(() => setStatus(t('apiStatus')), 1500);
+                updateMarkersAndMap();
+                updateDriverUI();
+                e.preventDefault();
+                return;
+            }
+            
+            // Check if passenger edit mode is active
+            if (editingPassengerId !== null) {
+                const passengerName = passengers.find(p => p.id === editingPassengerId)?.name || 'Passenger';
+                editingPassengerId = null;
+                editMode = false;
+                document.querySelectorAll('.pax-item').forEach(item => {
+                    item.style.borderColor = '';
+                    item.style.borderWidth = '';
+                });
+                setStatus(`✅ Edit mode cancelled for ${passengerName}`, 'success');
+                setTimeout(() => setStatus(t('apiStatus')), 1500);
+                updateMarkersAndMap();
+                updatePassengerUI();
+                e.preventDefault();
+                return;
+            }
+        }
+    });
+}
+
+
+
 </script>
 </body>
 </html>
