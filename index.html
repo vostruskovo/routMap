@@ -816,14 +816,27 @@
         <div class="modal-actions"><button class="btn-accent" id="bulkAddConfirm"><i class="bi bi-check-lg"></i> Add All</button><button class="btn-ghost" id="bulkCancel">Cancel</button></div>
     </div>
 </div>
+
 <!-- HISTORY MODAL -->
 <div class="bulk-modal-overlay" id="historyModal">
     <div class="bulk-modal">
         <h4><i class="bi bi-clock-history me-2"></i> Route History</h4>
-        <div id="historyList" style="max-height:250px;overflow-y:auto;margin:0.5rem 0;"><p style="color:var(--text-muted);font-size:0.75rem;">No saved routes yet.</p></div>
-        <div class="modal-actions"><button class="btn-ghost danger" id="clearHistoryBtn">Clear All</button><button class="btn-ghost" id="historyCancel">Close</button></div>
+        <!-- Search bar for history -->
+        <div class="search-icon-wrapper" style="margin: 0.5rem 0;">
+            <span class="search-icon-inside"><i class="bi bi-search"></i></span>
+            <input type="text" id="historySearchInput" class="form-control-sm-custom search-input" placeholder="🔍 Search routes by name, address, or date..." autocomplete="off" style="font-size:0.7rem;">
+            <button class="clear-search" id="clearHistorySearch">✕</button>
+        </div>
+        <div id="historyList" style="max-height:250px;overflow-y:auto;margin:0.5rem 0;">
+            <p style="color:var(--text-muted);font-size:0.75rem;">${t('noHistory')}</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-ghost danger" id="clearHistoryBtn">Clear All</button>
+            <button class="btn-ghost" id="historyCancel">Close</button>
+        </div>
     </div>
 </div>
+
 
 <script>
     // ----- TRANSLATIONS -----
@@ -1378,65 +1391,148 @@
     }
 
     // ----- LOAD HISTORY -----
-    function loadHistory() { 
-        try { 
-            const data = localStorage.getItem(HISTORY_KEY); 
-            if (data) routeHistory = JSON.parse(data); 
-        } catch(e){} 
+    function loadHistory() {
+    try {
+        const data = localStorage.getItem(HISTORY_KEY);
+        if (data) {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed)) {
+                routeHistory = parsed;
+                console.log('📂 History loaded:', routeHistory.length, 'routes');
+                return true;
+            }
+        }
+        routeHistory = [];
+        return false;
+    } catch(e) {
+        console.error('Failed to load history:', e);
+        routeHistory = [];
+        return false;
     }
-    function saveHistory() { 
-        try { 
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(routeHistory)); 
-        } catch(e){} 
+}
+
+
+
+    function saveHistory() {
+    try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(routeHistory));
+        console.log('💾 History saved:', routeHistory.length, 'routes');
+        return true;
+    } catch(e) {
+        console.error('Failed to save history:', e);
+        return false;
     }
-    function addToHistory() {
-        if (isReadOnly) return;
-        if(!currentOrder.length || !driver.lat) return;
-        const nodes = getOrderedNodesForPanel();
-        if(!nodes) return;
-        const entry = { 
-            id:Date.now(), 
-            timestamp:new Date().toLocaleString(), 
-            driver:{...driver}, 
-            passengers:passengers.map(p=>({...p})), 
-            currentOrder:[...currentOrder], 
-            totalDistance:document.getElementById('panelTotalDistance').textContent, 
-            stops:currentOrder.length,
-            driverId: driver.driverId
-        };
-        routeHistory.unshift(entry);
-        if(routeHistory.length>50) routeHistory=routeHistory.slice(0,50);
-        saveHistory();
-        setStatus(t('routeSaved'), 'success');
-        setTimeout(()=>setStatus(t('apiStatus')), 1500);
+}
+
+    
+    // Enhanced addToHistory function
+function addToHistory() {
+    if (isReadOnly) {
+        setStatus('⚠️ Read-only mode - cannot save', 'error');
+        return;
     }
-    function restoreFromHistory(id) {
-        if (isReadOnly) return;
-        const entry = routeHistory.find(h=>h.id===id);
-        if(!entry) return;
-        driver = {...entry.driver}; 
-        passengers = entry.passengers.map(p=>({...p})); 
-        currentOrder = [...entry.currentOrder];
-        nextId = passengers.reduce((max,p)=>Math.max(max,p.id),0)+1;
-        cachedRouteData = null;
-        
-        document.getElementById('driverName').value = driver.name || '';
-        document.getElementById('driverAddr').value = driver.address || '';
-        document.getElementById('driverPhone').value = driver.phone || '';
-        
-        updateDriverUI(); 
-        updatePassengerUI(); 
-        updateMarkersAndMap(); 
-        clearRoutes(); 
-        resetItinerary(); 
-        updatePassengerBadge();
-        
-        generateShareLink();
-        
-        setStatus('✅ Route restored from history!','success');
-        setTimeout(()=>setStatus(t('apiStatus')), 1500);
-        setTimeout(optimizeAndRoute, 500);
+    
+    if (!driver.lat) {
+        setStatus('⚠️ No driver set - cannot save route', 'error');
+        return;
     }
+    
+    if (!currentOrder.length || !passengers.length) {
+        setStatus('⚠️ No route to save! Optimize a route first.', 'error');
+        return;
+    }
+    
+    const nodes = getOrderedNodesForPanel();
+    if (!nodes || nodes.length < 2) {
+        setStatus('⚠️ Invalid route data - cannot save', 'error');
+        return;
+    }
+    
+    const totalDistText = document.getElementById('panelTotalDistance').textContent;
+    
+    const entry = {
+        id: Date.now(),
+        timestamp: new Date().toLocaleString(),
+        date: new Date().toDateString(),
+        time: new Date().toLocaleTimeString(),
+        driver: {...driver},
+        passengers: passengers.map(p => ({...p})),
+        currentOrder: [...currentOrder],
+        totalDistance: totalDistText,
+        stops: currentOrder.length,
+        driverId: driver.driverId || generateDriverId(),
+        routeSummary: `${driver.name || 'Driver'} - ${currentOrder.length} stops - ${totalDistText}`
+    };
+    
+    routeHistory.unshift(entry);
+    if (routeHistory.length > 50) routeHistory = routeHistory.slice(0, 50);
+    saveHistory();
+    
+    setStatus(`💾 Route saved to history! (${routeHistory.length} total)`, 'success');
+    setTimeout(() => setStatus(t('apiStatus')), 1500);
+    
+    // If history modal is open, refresh it
+    if (document.getElementById('historyModal').classList.contains('show')) {
+        renderHistoryList();
+    }
+    
+    const saveBtn = document.getElementById('saveRouteBtn');
+    if (saveBtn) {
+        saveBtn.style.background = 'var(--accent)';
+        saveBtn.style.color = 'var(--bg-primary)';
+        setTimeout(() => {
+            saveBtn.style.background = '';
+            saveBtn.style.color = '';
+        }, 1000);
+    }
+    
+    console.log('✅ Route saved to history:', entry);
+    return true;
+}
+
+
+    
+ function restoreFromHistory(id) {
+    if (isReadOnly) return;
+    const entry = routeHistory.find(h => h.id === id);
+    if (!entry) {
+        setStatus('⚠️ Route not found!', 'error');
+        return;
+    }
+    
+    setStatus('⏳ Restoring route...', '');
+    
+    driver = {...entry.driver};
+    passengers = entry.passengers.map(p => ({...p}));
+    currentOrder = [...entry.currentOrder];
+    nextId = passengers.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1;
+    cachedRouteData = null;
+    
+    document.getElementById('driverName').value = driver.name || '';
+    document.getElementById('driverAddr').value = driver.address || '';
+    document.getElementById('driverPhone').value = driver.phone || '';
+    
+    updateDriverUI();
+    updatePassengerUI();
+    updateMarkersAndMap();
+    clearRoutes();
+    resetItinerary();
+    updatePassengerBadge();
+    
+    generateShareLink();
+    
+    setStatus(`✅ Route restored from ${entry.date || ''} ${entry.time || ''}`, 'success');
+    setTimeout(() => setStatus(t('apiStatus')), 1500);
+    
+    // Close history modal
+    document.getElementById('historyModal').classList.remove('show');
+    
+    // Re-optimize to show the route
+    setTimeout(optimizeAndRoute, 500);
+}
+
+
+
     function clearHistory() { 
         if (isReadOnly) return;
         if(!confirm('Clear all route history?')) return; 
@@ -1564,19 +1660,49 @@
 
     // ----- DRIVER -----
     function setDriverFromCoords(lat,lng,address) {
-        if (isReadOnly) return;
-        const name=document.getElementById('driverName').value.trim()||'Driver';
-        const phone=document.getElementById('driverPhone').value.trim()||'';
-        driver={lat,lng,address,name,phone,driverId: driver.driverId || generateDriverId()};
-        if(map) map.setView([lat,lng],14);
+    if (isReadOnly) return;
+    const name=document.getElementById('driverName').value.trim()||'Driver';
+    const phone=document.getElementById('driverPhone').value.trim()||'';
+    driver={lat,lng,address,name,phone,driverId: driver.driverId || generateDriverId()};
+    if(map) map.setView([lat,lng],14);
+    currentOrder=[]; cachedRouteData=null;
+    updateMarkersAndMap(); clearRoutes(); resetItinerary(); updateDriverUI();
+    setStatus(`✅ Driver set: ${address.substring(0,40)}...`,'success');
+    document.getElementById('driverAddr').className='';
+    editingDriver = false;
+    generateShareLink();
+    saveStateSilent();
+    // AUTO RE-OPTIMIZE if there are passengers
+    if (passengers.length > 0) {
+        setTimeout(optimizeAndRoute, 300);
+    }
+}
+
+async function setDriver() {
+    if (isReadOnly) return;
+    const addr=document.getElementById('driverAddr').value.trim();
+    if(!addr){ setStatus('⚠️ Enter an address','error'); return; }
+    try {
+        setStatus(t('geocoding'));
+        const result=await geocodeAddress(addr);
+        if(!result) throw new Error('not found');
+        driver={lat:result.lat,lng:result.lng,address:addr,name:document.getElementById('driverName').value.trim()||'Driver',phone:document.getElementById('driverPhone').value.trim()||'',driverId: driver.driverId || generateDriverId()};
+        if(map) map.setView([result.lat,result.lng],14);
         currentOrder=[]; cachedRouteData=null;
         updateMarkersAndMap(); clearRoutes(); resetItinerary(); updateDriverUI();
-        setStatus(`✅ Driver set: ${address.substring(0,40)}...`,'success');
+        setStatus(`✅ Driver set: ${addr.substring(0,40)}...`,'success');
         document.getElementById('driverAddr').className='';
         editingDriver = false;
         generateShareLink();
         saveStateSilent();
-    }
+        // AUTO RE-OPTIMIZE if there are passengers
+        if (passengers.length > 0) {
+            setTimeout(optimizeAndRoute, 300);
+        }
+    } catch(e) { setStatus(t('geocodingFailed'),'error'); document.getElementById('driverAddr').className='error'; }
+}
+
+
     async function setDriver() {
         if (isReadOnly) return;
         const addr=document.getElementById('driverAddr').value.trim();
@@ -1627,36 +1753,45 @@
         updateMarkersAndMap();
         updateDriverUI();
     }
+    
     async function updateDriverLocation(lat,lng,newAddress=null) {
-        if (isReadOnly) return;
-        driver.lat=lat; driver.lng=lng;
-        driver.address = newAddress || await reverseGeocode(lat,lng);
-        currentOrder=[]; cachedRouteData=null;
-        updateDriverUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
-        setStatus(`📍 Driver location updated`,'success');
-        saveStateSilent();
-        document.getElementById('driverAddr').value = driver.address;
-        generateShareLink();
+    if (isReadOnly) return;
+    driver.lat=lat; driver.lng=lng;
+    driver.address = newAddress || await reverseGeocode(lat,lng);
+    currentOrder=[]; cachedRouteData=null;
+    updateDriverUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
+    setStatus(`📍 Driver location updated`,'success');
+    saveStateSilent();
+    document.getElementById('driverAddr').value = driver.address;
+    generateShareLink();
+    // AUTO RE-OPTIMIZE if there are passengers
+    if (passengers.length > 0) {
+        setTimeout(optimizeAndRoute, 300);
     }
+}
 
     // ----- PASSENGERS -----
     function addPassengerFromCoords(lat,lng,address,name,phone='') {
-        if (isReadOnly) return;
-        const p={id:nextId++,name,address,lat,lng,phone};
-        passengers.push(p);
-        currentOrder=[]; cachedRouteData=null;
-        updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
-        setStatus(t('passengerAdded',{name}),'success');
-        document.getElementById('paxName').value='';
-        document.getElementById('paxAddr').value='';
-        document.getElementById('paxPhone').value='';
-        document.getElementById('paxAddr').className='';
-        saveStateSilent();
-        generateShareLink();
-        // Clear search when adding
-        document.getElementById('passengerSearchInput').value = '';
-        document.getElementById('clearPassengerSearch').classList.remove('visible');
+    if (isReadOnly) return;
+    const p={id:nextId++,name,address,lat,lng,phone};
+    passengers.push(p);
+    currentOrder=[]; cachedRouteData=null;
+    updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
+    setStatus(t('passengerAdded',{name}),'success');
+    document.getElementById('paxName').value='';
+    document.getElementById('paxAddr').value='';
+    document.getElementById('paxPhone').value='';
+    document.getElementById('paxAddr').className='';
+    saveStateSilent();
+    generateShareLink();
+    document.getElementById('passengerSearchInput').value = '';
+    document.getElementById('clearPassengerSearch').classList.remove('visible');
+    // AUTO RE-OPTIMIZE if driver is set
+    if (driver.lat) {
+        setTimeout(optimizeAndRoute, 300);
     }
+}
+
     async function addPassengerFromUI() {
         if (isReadOnly) return;
         const name=document.getElementById('paxName').value.trim();
@@ -2043,6 +2178,10 @@
                         updateDriverUI();
                         saveStateSilent();
                         generateShareLink();
+                        // AUTO RE-OPTIMIZE
+                        if (passengers.length > 0) {
+                            setTimeout(optimizeAndRoute, 300);
+                        }
                     }
                 });
             }
@@ -2058,6 +2197,10 @@
             if(field === 'name') {
                 p.name = newValue || 'Passenger';
                 updateMarkersAndMap();
+                // If route exists, re-optimize (name doesn't change location, but update UI)
+                if (currentOrder.length > 0 && driver.lat) {
+                    setTimeout(optimizeAndRoute, 300);
+                }
             } else if(field === 'phone') {
                 p.phone = newValue || '';
                 updateMarkersAndMap();
@@ -2077,11 +2220,19 @@
                             updatePassengerUI();
                             saveStateSilent();
                             generateShareLink();
+                            // AUTO RE-OPTIMIZE
+                            if (driver.lat && passengers.length > 0) {
+                                setTimeout(optimizeAndRoute, 300);
+                            }
                         }
                     });
                 }
                 if(!newValue || newValue.length <= 2 || newValue === oldAddress) {
                     updateMarkersAndMap();
+                    // If address changed but no geocoding (just text change), still re-optimize if route exists
+                    if (currentOrder.length > 0 && driver.lat && passengers.length > 0) {
+                        setTimeout(optimizeAndRoute, 300);
+                    }
                 }
             }
             currentOrder = [];
@@ -2176,18 +2327,24 @@
             map.setView([driver.lat,driver.lng],14);
         }
     }
-    async function updatePassengerLocation(id,lat,lng,newAddress=null) {
-        if (isReadOnly) return;
-        const p=passengers.find(p=>p.id===id);
-        if(!p) return;
-        p.lat=lat; p.lng=lng;
-        p.address = newAddress || await reverseGeocode(lat,lng);
-        currentOrder=[]; cachedRouteData=null;
-        updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
-        setStatus(`📍 Location updated for ${p.name}`,'success');
-        saveStateSilent();
-        generateShareLink();
+
+
+async function updatePassengerLocation(id,lat,lng,newAddress=null) {
+    if (isReadOnly) return;
+    const p=passengers.find(p=>p.id===id);
+    if(!p) return;
+    p.lat=lat; p.lng=lng;
+    p.address = newAddress || await reverseGeocode(lat,lng);
+    currentOrder=[]; cachedRouteData=null;
+    updatePassengerUI(); updateMarkersAndMap(); clearRoutes(); resetItinerary(); updatePassengerBadge();
+    setStatus(`📍 Location updated for ${p.name}`,'success');
+    saveStateSilent();
+    generateShareLink();
+    // AUTO RE-OPTIMIZE
+    if (driver.lat && passengers.length > 0) {
+        setTimeout(optimizeAndRoute, 300);
     }
+}
 
     // ----- PICK MODE -----
     function showPickMode(mode) {
@@ -2246,24 +2403,112 @@
         }
         return { orderedNodes:order.map(i=>nodes[i]), totalDistance:total, segmentDistances:segs };
     }
-    async function optimizeAndRoute() {
-        if(!driver.lat){ setStatus('⚠️ Set driver first','error'); return; }
-        if(!passengers.length){ setStatus('⚠️ Add passengers','error'); return; }
-        setStatus(t('optimizing'));
-        try {
-            const {orderedNodes,totalDistance,segmentDistances}=await computeOptimalOrder();
-            currentOrder=orderedNodes.filter(n=>n.type==='passenger').map(n=>n.id);
-            cachedRouteData={orderedNodes,totalDistance,segmentDistances};
-            drawRoute(orderedNodes,segmentDistances);
-            updateItineraryPanel(orderedNodes,totalDistance,segmentDistances);
-            updatePassengerUI(); updateMarkersAndMap(); updatePassengerBadge();
-            setStatus(t('routeOptimized'),'success');
-            if (!isReadOnly) {
-                saveStateSilent();
-                generateShareLink();
-            }
-        } catch(e){ setStatus(t('optimizationFailed'),'error'); }
+
+
+    let optimizeTimeout = null;
+    let isOptimizing = false;
+
+async function optimizeAndRoute() {
+ // Clear any pending timeout
+    if (optimizeTimeout) {
+        clearTimeout(optimizeTimeout);
+        optimizeTimeout = null;
     }
+    
+    // Check if we can route
+    if (!driver.lat || !passengers.length) {
+        // Clear route if not enough data
+        if (routeLayers.length > 0) {
+            clearRoutes();
+            resetItinerary();
+        }
+        return;
+    }
+    
+    // Don't run if already optimizing
+    if (isOptimizing) return;
+    isOptimizing = true;
+    
+    // Run immediately - no delay!
+    try {
+        // Compute route synchronously (or with minimal delay)
+        computeRouteAndDisplay();
+    } catch(e) {
+        console.error('Real-time route error:', e);
+    } finally {
+        isOptimizing = false;
+    }
+}
+
+// Compute and display route - this runs synchronously
+function computeRouteAndDisplay() {
+    if (!driver.lat || !passengers.length) {
+        clearRoutes();
+        resetItinerary();
+        return;
+    }
+    
+    try {
+        // Compute optimal order using the current data
+        const nodes = [{...driver, type: 'driver', id: 'driver'}, ...passengers.map(p => ({...p, type: 'passenger'}))];
+        const n = nodes.length;
+        
+        // Calculate distance matrix
+        const dist = Array.from({length: n}, () => Array(n).fill(0));
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const d = haversine(nodes[i].lat, nodes[i].lng, nodes[j].lat, nodes[j].lng);
+                dist[i][j] = d;
+                dist[j][i] = d;
+            }
+        }
+        
+        // Greedy nearest neighbor (fast for real-time)
+        let visited = Array(n).fill(false);
+        visited[0] = true;
+        let order = [0];
+        let current = 0;
+        let total = 0;
+        let segs = [];
+        
+        while (order.length < n) {
+            let best = -1;
+            let bestD = Infinity;
+            for (let i = 0; i < n; i++) {
+                if (!visited[i] && dist[current][i] < bestD) {
+                    bestD = dist[current][i];
+                    best = i;
+                }
+            }
+            total += bestD;
+            segs.push(bestD);
+            visited[best] = true;
+            order.push(best);
+            current = best;
+        }
+        
+        const orderedNodes = order.map(i => nodes[i]);
+        const totalDistance = total;
+        const segmentDistances = segs;
+        
+        // Update state
+        currentOrder = orderedNodes.filter(n => n.type === 'passenger').map(n => n.id);
+        cachedRouteData = { orderedNodes, totalDistance, segmentDistances };
+        
+        // Draw route instantly
+        drawRoute(orderedNodes, segmentDistances);
+        updateItineraryPanel(orderedNodes, totalDistance, segmentDistances);
+        updatePassengerBadge();
+        
+        // Update status
+        setStatus(`✅ Route updated • ${totalDistance.toFixed(1)} km • ${currentOrder.length} stops`, 'success');
+        
+    } catch(e) {
+        console.error('Route computation error:', e);
+    }
+}
+
+
     function drawRoute(nodes,segs) {
         clearRoutes();
         if(!map) return;
@@ -2513,7 +2758,19 @@
         document.getElementById('bulkAddBtn').addEventListener('click', showBulkModal);
         document.getElementById('bulkAddConfirm').addEventListener('click', processBulkAdd);
         document.getElementById('bulkCancel').addEventListener('click', ()=>{ document.getElementById('bulkModal').classList.remove('show'); });
-        document.getElementById('historyBtn').addEventListener('click', showHistory);
+        // In bindEvents(), update the history button
+document.getElementById('historyBtn').addEventListener('click', showHistory);
+
+// History close button
+document.getElementById('historyCancel').addEventListener('click', function() {
+    document.getElementById('historyModal').classList.remove('show');
+    // Clear search when closing
+    const searchInput = document.getElementById('historySearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        document.getElementById('clearHistorySearch').classList.remove('visible');
+    }
+});
         document.getElementById('historyCancel').addEventListener('click', ()=>{ document.getElementById('historyModal').classList.remove('show'); });
         document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{ clearHistory(); showHistory(); });
         document.getElementById('saveRouteBtn').addEventListener('click', addToHistory);
@@ -2536,16 +2793,36 @@
     }
 
     // ----- INIT -----
-    function init() {
-        initMap();
-        bindEvents();
-        updateDriverUI();
-        updatePassengerBadge();
-        updateLang('en');
-        resetItinerary();
+    // Call this in your init() function
+// ----- INIT -----
+function init() {
+    loadHistory();
+    initMap();
+    bindEvents();
+    setupModalEscListeners();
+    setupHistorySearch();
+    updateDriverUI();
+    updatePassengerBadge();
+    updateLang('en');
+    resetItinerary();
+    console.log('✅ RoutMap initialized with real-time routing');
+    
+    // Check if there's data and route automatically
+    if (driver.lat && passengers.length > 0) {
+        setTimeout(optimizeAndRoute, 100);
     }
-    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
-    window.addEventListener('resize', ()=>{ if(map) setTimeout(()=>map.invalidateSize(),150); });
+}
+
+// Make sure we only initialize once
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+window.addEventListener('resize', ()=>{ 
+    if(map) setTimeout(()=>map.invalidateSize(),150);
+});
 
 
 
@@ -2628,18 +2905,47 @@ for (let i = 0; i < fields.length; ++i) {
 function setupModalEscListeners() {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            // Close history modal if open
+            // Close history modal
             const historyModal = document.getElementById('historyModal');
             if (historyModal && historyModal.classList.contains('show')) {
+                // If history search has focus, clear it first
+                const searchInput = document.getElementById('historySearchInput');
+                if (searchInput && document.activeElement === searchInput) {
+                    searchInput.value = '';
+                    document.getElementById('clearHistorySearch').classList.remove('visible');
+                    renderHistoryList('');
+                    e.preventDefault();
+                    return;
+                }
                 historyModal.classList.remove('show');
+                // Clear search when closing
+                if (searchInput) {
+                    searchInput.value = '';
+                    document.getElementById('clearHistorySearch').classList.remove('visible');
+                }
                 e.preventDefault();
                 return;
             }
             
-            // Close bulk modal if open
+            // Close bulk modal
             const bulkModal = document.getElementById('bulkModal');
             if (bulkModal && bulkModal.classList.contains('show')) {
                 bulkModal.classList.remove('show');
+                e.preventDefault();
+                return;
+            }
+            
+            // Cancel pick mode if active
+            if (pickMode) {
+                cancelPickMode();
+                e.preventDefault();
+                return;
+            }
+            
+            // Close search results
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults && searchResults.classList.contains('show')) {
+                searchResults.classList.remove('show');
                 e.preventDefault();
                 return;
             }
@@ -2647,16 +2953,6 @@ function setupModalEscListeners() {
     });
 }
 
-// Call this in your init() function
-function init() {
-    initMap();
-    bindEvents();
-    setupModalEscListeners(); // <-- Add this line
-    updateDriverUI();
-    updatePassengerBadge();
-    updateLang('en');
-    resetItinerary();
-}
 
 
 function attachItineraryEditableListeners() {
@@ -2829,6 +3125,208 @@ function attachItineraryEditableListeners() {
     });
 }
 
+
+
+// Render history list with search filtering
+// ===== HISTORY SYSTEM =====
+
+// Render history list with search filtering
+function renderHistoryList(searchQuery = '') {
+    const container = document.getElementById('historyList');
+    if (!container) return;
+    
+    if (!routeHistory || !routeHistory.length) {
+        container.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;">${t('noHistory')}</p>`;
+        return;
+    }
+    
+    let filtered = routeHistory;
+    if (searchQuery && searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        filtered = routeHistory.filter(entry => {
+            const searchText = `${entry.driver?.name || ''} ${entry.driver?.address || ''} ${entry.timestamp || ''} ${entry.date || ''} ${entry.time || ''} ${entry.routeSummary || ''}`.toLowerCase();
+            return searchText.includes(query);
+        });
+    }
+    
+    if (!filtered.length) {
+        container.innerHTML = `<p style="color:var(--text-muted);font-size:0.75rem;">🔍 No routes found matching "${escapeHtml(searchQuery)}"</p>`;
+        return;
+    }
+    
+    let html = '';
+    filtered.forEach(entry => {
+        const dateTime = entry.date && entry.time ? `${entry.date} ${entry.time}` : entry.timestamp || 'Unknown';
+        html += `<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;border-left:3px solid var(--accent);transition:var(--transition);" 
+                      onclick="restoreFromHistory(${entry.id})"
+                      onmouseover="this.style.background='rgba(79,191,139,0.1)'"
+                      onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                <span style="font-weight:600;color:var(--text-primary);font-size:0.8rem;">🚗 ${escapeHtml(entry.driver?.name || 'Driver')} - ${entry.stops || 0} stops</span>
+                <span style="color:var(--text-muted);font-size:0.55rem;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:20px;">${escapeHtml(dateTime)}</span>
+            </div>
+            <div style="color:var(--text-muted);font-size:0.6rem;margin-top:2px;">
+                ${entry.totalDistance || '📏 ---'} 
+                <span style="opacity:0.4;margin-left:8px;">📍 ${escapeHtml(entry.driver?.address || 'No address')}</span>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// Load history with search
+function showHistory() {
+    // Make sure history is loaded
+    loadHistory();
+    renderHistoryList();
+    document.getElementById('historyModal').classList.add('show');
+    // Focus search input when modal opens
+    setTimeout(() => {
+        const input = document.getElementById('historySearchInput');
+        if (input) input.focus();
+    }, 100);
+}
+
+// Setup history search
+function setupHistorySearch() {
+    const input = document.getElementById('historySearchInput');
+    const clearBtn = document.getElementById('clearHistorySearch');
+    if (!input) return;
+    
+    input.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearBtn.classList.toggle('visible', query.length > 0);
+        renderHistoryList(query);
+    });
+    
+    clearBtn.addEventListener('click', function() {
+        input.value = '';
+        clearBtn.classList.remove('visible');
+        renderHistoryList('');
+        input.focus();
+    });
+    
+    // ESC key support - clear search
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            this.value = '';
+            clearBtn.classList.remove('visible');
+            renderHistoryList('');
+            this.blur();
+            e.preventDefault();
+        }
+    });
+}
+
+// ===== MODAL ESC LISTENER =====
+function setupModalEscListeners() {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // Close history modal
+            const historyModal = document.getElementById('historyModal');
+            if (historyModal && historyModal.classList.contains('show')) {
+                // If history search has focus, clear it first
+                const searchInput = document.getElementById('historySearchInput');
+                if (searchInput && document.activeElement === searchInput) {
+                    searchInput.value = '';
+                    document.getElementById('clearHistorySearch').classList.remove('visible');
+                    renderHistoryList('');
+                    e.preventDefault();
+                    return;
+                }
+                historyModal.classList.remove('show');
+                // Clear search when closing
+                if (searchInput) {
+                    searchInput.value = '';
+                    document.getElementById('clearHistorySearch').classList.remove('visible');
+                }
+                e.preventDefault();
+                return;
+            }
+            
+            // Close bulk modal
+            const bulkModal = document.getElementById('bulkModal');
+            if (bulkModal && bulkModal.classList.contains('show')) {
+                bulkModal.classList.remove('show');
+                e.preventDefault();
+                return;
+            }
+            
+            // Cancel pick mode if active
+            if (pickMode) {
+                cancelPickMode();
+                e.preventDefault();
+                return;
+            }
+            
+            // Close search results
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults && searchResults.classList.contains('show')) {
+                searchResults.classList.remove('show');
+                e.preventDefault();
+                return;
+            }
+        }
+    });
+}
+
+// Load history with search
+function showHistory() {
+    renderHistoryList();
+    document.getElementById('historyModal').classList.add('show');
+    // Focus search input when modal opens
+    setTimeout(() => {
+        document.getElementById('historySearchInput').focus();
+    }, 100);
+}
+
+// Setup history search
+function setupHistorySearch() {
+    const input = document.getElementById('historySearchInput');
+    const clearBtn = document.getElementById('clearHistorySearch');
+    if (!input) return;
+    
+    input.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearBtn.classList.toggle('visible', query.length > 0);
+        renderHistoryList(query);
+    });
+    
+    clearBtn.addEventListener('click', function() {
+        input.value = '';
+        clearBtn.classList.remove('visible');
+        renderHistoryList('');
+        input.focus();
+    });
+    
+    // ESC key support
+/*    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // Clear the search
+            this.value = '';
+            clearBtn.classList.remove('visible');
+            renderHistoryList('');
+            this.blur();
+            e.preventDefault();
+        }
+    });*/
+
+       input.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (this.value.trim() !== '') {
+            // Clear the search if not empty
+            this.value = '';
+        } else {
+            // Otherwise close
+            clearBtn.classList.remove('visible');
+            renderHistoryList('');
+            this.blur();
+            e.preventDefault();
+        }
+    }
+
+    });
+}
 </script>
 </body>
 </html>
